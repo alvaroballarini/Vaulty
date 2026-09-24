@@ -36,7 +36,7 @@ export function Sidebar() {
         <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
           <Wallet className="size-5" aria-hidden="true" />
         </div>
-        <span className="text-lg font-semibold tracking-tight">Nivo</span>
+        <span className="text-lg font-semibold tracking-tight">Vaulty</span>
       </div>
 
       <nav className="flex flex-1 flex-col gap-1" aria-label="Principal">
@@ -79,7 +79,7 @@ export function Sidebar() {
       </nav>
 
       <div className="rounded-2xl bg-secondary p-4">
-        <p className="text-sm font-medium">Nivo Premium</p>
+        <p className="text-sm font-medium">Vaulty Premium</p>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           Desbloquea informes avanzados y categorías ilimitadas.
         </p>

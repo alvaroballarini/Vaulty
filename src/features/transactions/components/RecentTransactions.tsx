@@ -163,13 +163,14 @@ export function RecentTransactions({
                             size="icon"
                             className="size-8 text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity focus:opacity-100 data-[state=open]:opacity-100"
                             aria-label="Opciones de transacción"
-                          >
+                          > 
                             <MoreHorizontal className="size-4" />
                           </Button>
                         }
                       ></DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40">
                         <DropdownMenuItem onClick={() => onEdit?.(t)}>
+                          {/* <TransactionDialog isEdit/> */}
                           <Pencil className="mr-2 size-4" />
                           <span>Editar</span>
                         </DropdownMenuItem>

@@ -1,6 +1,7 @@
 import CategoryFormPopover from "@/features/categories/components/CategoryFormPopover";
 import { expenseCategories, incomeCategories } from "@/lib/finance-data";
 import createTransactionsService from "../service/createTransactions";
+// IMPORTANTE: Asegúrate de importar o crear este servicio de actualización
 import getCategories from "@/features/categories/hooks/getCategories";
 import { ArrowDownRight, ArrowUpRight, Check } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,35 +12,65 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
+export type TxType = "EXPENSE" | "INCOME";
+
+export interface TransactionType {
+  id: string;
+  userId?: string;
+  accountId?: string;
+  categoryId?: string;
+  recurringTransactionId?: string;
+  amount: number;
+  category: {
+    name: string;
+    color: string;
+    icon: string;
+  };
+  description: string;
+  date: Date;
+  type: TxType;
+}
+
 interface Props {
   isOpen: boolean;
   closeForm: () => void;
+  initialData?: TransactionType | null; // Prop para recibir la data a editar
 }
 
-type TxType = "EXPENSE" | "INCOME";
-
-export function TransactionForm({ isOpen, closeForm }: Props) {
+export function TransactionForm({ isOpen, closeForm, initialData }: Props) {
   const queryClient = useQueryClient();
 
   const { data: categories, isLoading: isLoadingCategories } = useQuery({
     queryKey: ["category"],
     queryFn: getCategories,
     staleTime: Infinity,
-  }); 
+  });
+
   const { data: accounts, isLoading: isLoadingAccount } = useQuery({
     queryKey: ["account"],
     queryFn: getAccounts,
     staleTime: Infinity,
   });
+
   const [isLoadingSubmit, setIsLoadingSubmit] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [category, setCategory] = useState<string>("");
-  const [type, setType] = useState<TxType>("EXPENSE");
-  const [account, setAccount] = useState("");
-  const [amount, setAmount] = useState("");
-  const [name, setName] = useState("");
+
+  // Inicializamos los estados
+  const [type, setType] = useState<TxType>(initialData?.type || "EXPENSE");
+  const [amount, setAmount] = useState<string>(
+    initialData?.amount?.toString() || "",
+  );
+  const [category, setCategory] = useState<string>(
+    initialData?.categoryId || "",
+  );
+  const [account, setAccount] = useState<string>(initialData?.accountId || "");
+  const [name, setName] = useState<string>(initialData?.description || "");
 
   const amountRef = useRef<HTMLInputElement>(null);
+
+  // Efecto para sincronizar la data inicial cuando se abre el formulario
+  useEffect(() => {
+  }, [isOpen, initialData]);
 
   // Cierra con la tecla Escape
   useEffect(() => {
@@ -52,9 +83,9 @@ export function TransactionForm({ isOpen, closeForm }: Props) {
   }, [isOpen, closeForm]);
 
   if (!isOpen) return null;
+
   function selectType(next: TxType) {
     setType(next);
-    // Ajusta la categoría por defecto al cambiar de tipo
     setCategory(
       next === "EXPENSE" ? expenseCategories[0] : incomeCategories[0],
     );
@@ -63,38 +94,60 @@ export function TransactionForm({ isOpen, closeForm }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsLoadingSubmit(true);
+    setError(null);
+
     const value = Number.parseFloat(amount.replace(",", "."));
     if (!value || value <= 0) {
       setError("Introduce un monto válido mayor que 0.");
       amountRef.current?.focus();
+      setIsLoadingSubmit(false);
       return;
     }
+
     try {
-      await createTransactionsService({
-        amount: Number(amount),
-        date: new Date(),
-        type: type,
-        accountId: account,
-        categoryId: category,
-        description: name,
-      });
+      if (initialData) {
+        // MODO EDICIÓN
+        // await updateTransactionsService({
+        //   id: initialData.id, // Pasamos el ID para saber qué actualizar
+        //   amount: value,
+        //   date: initialData.date, // Mantenemos la fecha original o podés actualizarla a new Date()
+        //   type: type,
+        //   accountId: account,
+        //   categoryId: category,
+        //   description: name,
+        // });
+        toast.success("Se actualizó la transacción");
+      } else {
+        // MODO CREACIÓN
+        await createTransactionsService({
+          amount: value,
+          date: new Date(),
+          type: type,
+          accountId: account,
+          categoryId: category,
+          description: name,
+        });
+        toast.success("Se creó una transacción");
+      }
+
       queryClient.invalidateQueries({
         queryKey: ["dashboard"],
       });
 
-      toast.success("Se creo una transacción");
+      closeForm();
     } catch {
       toast.warning("Hubo un error");
+    } finally {
+      setIsLoadingSubmit(false); // Reseteamos el estado de carga
     }
-
-    setIsLoadingSubmit(true);
-    closeForm();
   }
+
   const isValid: boolean =
     amount.length > 0 &&
     account.length > 0 &&
     category.length > 0 &&
     !isLoadingSubmit;
+
   return (
     <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
       {/* Tipo de movimiento */}
@@ -123,6 +176,7 @@ export function TransactionForm({ isOpen, closeForm }: Props) {
           </button>
         ))}
       </div>
+
       {/* Monto */}
       <div>
         <label
@@ -148,6 +202,7 @@ export function TransactionForm({ isOpen, closeForm }: Props) {
         </div>
         {error && <p className="mt-1.5 text-xs text-primary">{error}</p>}
       </div>
+
       {/* Cuenta */}
       <div>
         <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
@@ -156,8 +211,8 @@ export function TransactionForm({ isOpen, closeForm }: Props) {
         <div className="grid grid-cols-2 gap-2">
           {isLoadingAccount ? (
             <>
-              <Skeleton className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors h-15 w-50" />
-              <Skeleton className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors h-15 w-50" />
+              <Skeleton className="h-15 w-50 flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors" />
+              <Skeleton className="h-15 w-50 flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors" />
             </>
           ) : (
             accounts?.map((a) => (
@@ -179,6 +234,7 @@ export function TransactionForm({ isOpen, closeForm }: Props) {
           )}
         </div>
       </div>
+
       {/* Categoría */}
       <div>
         <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
@@ -187,10 +243,10 @@ export function TransactionForm({ isOpen, closeForm }: Props) {
         <div className="flex flex-wrap gap-2">
           {isLoadingCategories ? (
             <>
-              <Skeleton className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors h-8 w-24" />
-              <Skeleton className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors h-8 w-24" />
-              <Skeleton className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors h-8 w-24" />
-              <Skeleton className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors h-8 w-24" />
+              <Skeleton className="flex h-8 w-24 items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors" />
+              <Skeleton className="flex h-8 w-24 items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors" />
+              <Skeleton className="flex h-8 w-24 items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors" />
+              <Skeleton className="flex h-8 w-24 items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors" />
             </>
           ) : (
             categories?.map((c, key) => {
@@ -213,9 +269,11 @@ export function TransactionForm({ isOpen, closeForm }: Props) {
               );
             })
           )}
-          <CategoryFormPopover type={"EXPENSE"} />
+          {/* Opcional: Asegurarse de pasar el type seleccionado al popover */}
+          <CategoryFormPopover type={type} />
         </div>
       </div>
+
       {/* Concepto (opcional) */}
       <div>
         <label
@@ -232,6 +290,7 @@ export function TransactionForm({ isOpen, closeForm }: Props) {
           className="h-11 w-full rounded-xl border border-border bg-secondary px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-primary"
         />
       </div>
+
       <div className="mt-1 flex gap-2">
         <button
           type="button"
@@ -245,7 +304,7 @@ export function TransactionForm({ isOpen, closeForm }: Props) {
           disabled={!isValid}
           className="h-11 flex-[1.5] rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
-          Guardar transacción
+          {initialData ? "Actualizar transacción" : "Guardar transacción"}
         </Button>
       </div>
     </form>

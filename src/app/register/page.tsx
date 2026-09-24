@@ -3,8 +3,8 @@ import { RegisterForm } from "@/features/auth/components/registerForm"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Crear cuenta — Nivo",
-  description: "Regístrate gratis y toma el control de tus finanzas con Nivo.",
+  title: "Crear cuenta — Vaulty",
+  description: "Regístrate gratis y toma el control de tus finanzas con Vaulty.",
 }
 
 export default function RegisterPage() {

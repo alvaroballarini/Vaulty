@@ -3,8 +3,8 @@ import { LoginForm } from "@/features/auth/components/loginForm"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Iniciar sesión — Nivo",
-  description: "Accede a tu panel financiero de Nivo.",
+  title: "Iniciar sesión — Vaulty",
+  description: "Accede a tu panel financiero de Vaulty.",
 }
 
 export default function LoginPage() {

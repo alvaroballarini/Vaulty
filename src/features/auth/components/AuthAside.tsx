@@ -24,7 +24,7 @@ export function AuthAside() {
         <div className="flex size-9 items-center justify-center rounded-xl bg-primary-foreground/15">
           <Wallet className="size-5" aria-hidden="true" />
         </div>
-        <span className="text-lg font-semibold tracking-tight">Nivo</span>
+        <span className="text-lg font-semibold tracking-tight">Vaulty</span>
       </div>
 
       <div className="relative max-w-md">
@@ -32,7 +32,7 @@ export function AuthAside() {
           Toma el control total de tus finanzas.
         </h2>
         <p className="mt-3 text-pretty leading-relaxed text-primary-foreground/80">
-          Miles de personas ya organizan su dinero con Nivo. Únete y empieza a construir un futuro financiero más sólido.
+          Miles de personas ya organizan su dinero con Vaulty. Únete y empieza a construir un futuro financiero más sólido.
         </p>
 
         <ul className="mt-8 flex flex-col gap-5">
@@ -50,7 +50,7 @@ export function AuthAside() {
         </ul>
       </div>
 
-      <p className="relative text-sm text-primary-foreground/60">© {new Date().getFullYear()} Nivo. Todos los derechos reservados.</p>
+      <p className="relative text-sm text-primary-foreground/60">© {new Date().getFullYear()} Vaulty. Todos los derechos reservados.</p>
     </aside>
   )
 }

@@ -14,7 +14,17 @@ import getDashboard from "@/hooks/getDashboard";
 import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { transactionType } from "@/features/transactions/types/type";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { TransactionForm } from "@/features/transactions/components/TransactionForm";
+import { RecurringTransactionForm } from "@/features/transactions/components/RecurringTransactionForm";
+type DialogType = "transaction" | "recurring" | null;
 
 export default function Page() {
   const router = useRouter();
@@ -30,8 +40,6 @@ export default function Page() {
   });
   const {
     data: dashboardTest,
-    isLoading: isLoadingDashboardTest,
-    error: queryErrorTest,
   } = useQuery({
     queryKey: ["dashboardTest"],
     queryFn: getDashboardHistory,
@@ -42,8 +50,18 @@ export default function Page() {
       router.replace("/login");
     }
   }, [queryError, router]);
-
+  const onEdit = (data: transactionType) => {
+    console.log(data);
+    setDialogType("transaction");
+  };
   // console.log(dashboard);
+  const [dialogType, setDialogType] = useState<DialogType>(null);
+
+  const isOpen = dialogType !== null;
+  const close = () => {
+    setDialogType(null);
+  };
+
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <Sidebar />
@@ -84,13 +102,32 @@ export default function Page() {
               <RecentTransactions
                 data={dashboard?.transactions}
                 isLoadingData={isLoadingDashboard}
-                onEdit={(data) => console.log(data)}
+                onEdit={onEdit}
               />
               <Goals />
             </div>
           </div>
         </main>
       </div>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {dialogType === "transaction"
+                ? "Nueva transacción"
+                : "Nueva transacción programada"}
+            </DialogTitle>
+          </DialogHeader>
+
+          {dialogType === "transaction" && (
+            <TransactionForm isOpen={isOpen} closeForm={close} />
+          )}
+
+          {dialogType === "recurring" && (
+            <RecurringTransactionForm isOpen={isOpen} closeForm={close} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

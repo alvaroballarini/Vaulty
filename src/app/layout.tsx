@@ -11,7 +11,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Nivo — Panel Financiero",
+  title: "Vaulty — Panel Financiero",
   description:
     "Controla tu saldo, ingresos, gastos, ahorro, presupuestos y objetivos en un solo lugar.",
   generator: "v0.app",
