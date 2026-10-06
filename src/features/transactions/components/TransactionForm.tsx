@@ -1,312 +1,162 @@
-import CategoryFormPopover from "@/features/categories/components/CategoryFormPopover";
-import { expenseCategories, incomeCategories } from "@/lib/finance-data";
-import createTransactionsService from "../service/createTransactions";
-// IMPORTANTE: Asegúrate de importar o crear este servicio de actualización
-import getCategories from "@/features/categories/hooks/getCategories";
-import { ArrowDownRight, ArrowUpRight, Check } from "lucide-react";
+"use client";
+
+import { useId, useRef, useState } from "react";
+import { ArrowDownLeft, ArrowUpRight, CalendarDays, Check, ChevronDown, LoaderCircle, Plus, Wallet } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import getAccounts from "@/features/account/hook/getAccount";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { toast } from "sonner";
+import getCategories from "@/features/categories/hooks/getCategories";
+import getAccounts from "@/features/account/hook/getAccount";
+import CategoryFormPopover from "@/features/categories/components/CategoryFormPopover";
+import { saveTransaction } from "../service/saveTransaction";
+import { parseMoneyInput, formatMoneyInput } from "@/lib/money";
+import { APP_TIMEZONE } from "@/lib/date-utils";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export type TxType = "EXPENSE" | "INCOME";
-
 export interface TransactionType {
-  id: string;
-  userId?: string;
-  accountId?: string;
-  categoryId?: string;
-  recurringTransactionId?: string;
-  amount: number;
-  category: {
-    name: string;
-    color: string;
-    icon: string;
-  };
-  description: string;
-  date: Date;
-  type: TxType;
+  id: string; amount: number; date: Date | string; type: TxType;
+  accountId?: string; categoryId?: string | null; description?: string | null;
 }
-
 interface Props {
   isOpen: boolean;
-  closeForm: () => void;
-  initialData?: TransactionType | null; // Prop para recibir la data a editar
+  closeForm?: () => void;
+  initialData?: TransactionType | null;
+  inline?: boolean;
+  preferenceKey?: string;
 }
 
-export function TransactionForm({ isOpen, closeForm, initialData }: Props) {
+export function TransactionForm({ isOpen, closeForm, initialData, inline = false, preferenceKey }: Props) {
   const queryClient = useQueryClient();
-
-  const { data: categories, isLoading: isLoadingCategories } = useQuery({
-    queryKey: ["category"],
-    queryFn: getCategories,
-    staleTime: Infinity,
-  });
-
-  const { data: accounts, isLoading: isLoadingAccount } = useQuery({
-    queryKey: ["account"],
-    queryFn: getAccounts,
-    staleTime: Infinity,
-  });
-
-  const [isLoadingSubmit, setIsLoadingSubmit] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Inicializamos los estados
-  const [type, setType] = useState<TxType>(initialData?.type || "EXPENSE");
-  const [amount, setAmount] = useState<string>(
-    initialData?.amount?.toString() || "",
-  );
-  const [category, setCategory] = useState<string>(
-    initialData?.categoryId || "",
-  );
-  const [account, setAccount] = useState<string>(initialData?.accountId || "");
-  const [name, setName] = useState<string>(initialData?.description || "");
-
+  const prefix = useId();
   const amountRef = useRef<HTMLInputElement>(null);
+  const submitting = useRef(false);
+  const { data: categories = [], isLoading: loadingCategories, isError: categoryError, refetch: reloadCategories } = useQuery({
+    queryKey: ["category"], queryFn: getCategories, staleTime: 60_000, enabled: isOpen,
+  });
+  const { data: accounts = [], isLoading: loadingAccounts, isError: accountError, refetch: reloadAccounts } = useQuery({
+    queryKey: ["account"], queryFn: getAccounts, staleTime: 60_000, enabled: isOpen,
+  });
+  const [type, setType] = useState<TxType>(initialData?.type ?? "EXPENSE");
+  const [amount, setAmount] = useState(initialData ? formatMoneyInput(Number(initialData.amount)) : "");
+  const [category, setCategory] = useState(initialData?.categoryId ?? "");
+  const [account, setAccount] = useState(() => {
+    if (initialData?.accountId) return initialData.accountId;
+    try { return preferenceKey && typeof window !== "undefined" ? localStorage.getItem(preferenceKey) ?? "" : ""; } catch { return ""; }
+  });
+  const [description, setDescription] = useState(initialData?.description ?? "");
+  const [dateMode, setDateMode] = useState(initialData ? "custom" : "today");
+  const [date, setDate] = useState(initialData ? formatInTimeZone(new Date(initialData.date), APP_TIMEZONE, "yyyy-MM-dd") : "");
+  const [showNote, setShowNote] = useState(Boolean(initialData?.description));
+  const [showAll, setShowAll] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const accountId = accounts.some((item) => item.id === account) ? account : accounts[0]?.id ?? "";
+  const options = categories.filter((item) => item.type === type);
+  const visibleCategories = showAll ? options : options.slice(0, 3);
 
-  // Efecto para sincronizar la data inicial cuando se abre el formulario
-  useEffect(() => {
-  }, [isOpen, initialData]);
-
-  // Cierra con la tecla Escape
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeForm();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, closeForm]);
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitting.current) return;
+    setError(null);
+    const value = parseMoneyInput(amount);
+    if (value === null) { setError("Ingresá un monto válido, por ejemplo 18.500,50."); amountRef.current?.focus(); return; }
+    if (!accountId) { setError("Necesitás una cuenta para registrar el movimiento."); return; }
+    const categoryId = options.some((item) => item.id === category) ? category : null;
+    if (!categoryId) { setError("Elegí una categoría para organizar este movimiento."); return; }
+    if (dateMode === "custom" && !date) { setError("Elegí la fecha del movimiento."); return; }
+    const now = new Date();
+    const movementDate = dateMode === "today" ? now : dateMode === "yesterday"
+      ? fromZonedTime(formatInTimeZone(new Date(now.getTime() - 86400000), APP_TIMEZONE, "yyyy-MM-dd") + "T12:00:00", APP_TIMEZONE)
+      : initialData && date === formatInTimeZone(new Date(initialData.date), APP_TIMEZONE, "yyyy-MM-dd")
+        ? new Date(initialData.date) : fromZonedTime(date + "T12:00:00", APP_TIMEZONE);
+    submitting.current = true;
+    setSaving(true);
+    try {
+      const result = await saveTransaction({ id: initialData?.id, amount: value, type, accountId, categoryId, description, date: movementDate });
+      if (!result.ok) { setError(result.error); return; }
+      try { if (preferenceKey) localStorage.setItem(preferenceKey, accountId); } catch { /* Optional preference storage. */ }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboardTest"] }),
+        queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+      ]);
+      toast.success(initialData ? "Movimiento actualizado" : "Movimiento guardado");
+      setAmount(""); setDescription(""); setShowNote(false); setDateMode("today"); setDate("");
+      if (inline) amountRef.current?.focus(); else closeForm?.();
+    } catch { setError("No pudimos confirmar el guardado. Revisá los últimos movimientos antes de reintentar."); }
+    finally { submitting.current = false; setSaving(false); }
+  }
 
   if (!isOpen) return null;
-
-  function selectType(next: TxType) {
-    setType(next);
-    setCategory(
-      next === "EXPENSE" ? expenseCategories[0] : incomeCategories[0],
-    );
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setIsLoadingSubmit(true);
-    setError(null);
-
-    const value = Number.parseFloat(amount.replace(",", "."));
-    if (!value || value <= 0) {
-      setError("Introduce un monto válido mayor que 0.");
-      amountRef.current?.focus();
-      setIsLoadingSubmit(false);
-      return;
-    }
-
-    try {
-      if (initialData) {
-        // MODO EDICIÓN
-        // await updateTransactionsService({
-        //   id: initialData.id, // Pasamos el ID para saber qué actualizar
-        //   amount: value,
-        //   date: initialData.date, // Mantenemos la fecha original o podés actualizarla a new Date()
-        //   type: type,
-        //   accountId: account,
-        //   categoryId: category,
-        //   description: name,
-        // });
-        toast.success("Se actualizó la transacción");
-      } else {
-        // MODO CREACIÓN
-        await createTransactionsService({
-          amount: value,
-          date: new Date(),
-          type: type,
-          accountId: account,
-          categoryId: category,
-          description: name,
-        });
-        toast.success("Se creó una transacción");
-      }
-
-      queryClient.invalidateQueries({
-        queryKey: ["dashboard"],
-      });
-
-      closeForm();
-    } catch {
-      toast.warning("Hubo un error");
-    } finally {
-      setIsLoadingSubmit(false); // Reseteamos el estado de carga
-    }
-  }
-
-  const isValid: boolean =
-    amount.length > 0 &&
-    account.length > 0 &&
-    category.length > 0 &&
-    !isLoadingSubmit;
-
   return (
-    <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
-      {/* Tipo de movimiento */}
-      <div className="grid grid-cols-2 gap-2 rounded-xl bg-secondary p-1">
-        {(
-          [
-            { key: "EXPENSE", label: "Gasto", Icon: ArrowDownRight },
-            { key: "INCOME", label: "Ingreso", Icon: ArrowUpRight },
-          ] as const
-        ).map(({ key, label, Icon }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => selectType(key)}
-            className={cn(
-              "flex h-10 items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-colors",
-              type === key
-                ? key === "EXPENSE"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-foreground text-background"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Icon className="size-4" />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Monto */}
-      <div>
-        <label
-          htmlFor="tx-amount"
-          className="mb-1.5 block text-xs font-medium text-muted-foreground"
-        >
-          Monto
-        </label>
-        <div className="flex items-center rounded-xl border border-border bg-secondary px-4 focus-within:border-primary">
-          <span className="text-xl font-semibold text-muted-foreground">$</span>
-          <input
-            id="tx-amount"
-            ref={amountRef}
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => {
-              setAmount(e.target.value.replace(/[^0-9.,]/g, ""));
-              setError(null);
-            }}
-            placeholder="0,00"
-            className="h-14 w-full bg-transparent px-2 font-mono text-2xl font-semibold tabular-nums outline-none placeholder:text-muted-foreground/50"
-          />
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3.5" aria-label={initialData ? "Editar movimiento" : "Registro rápido"}>
+      <fieldset disabled={saving} className="flex min-w-0 flex-col gap-3.5 disabled:opacity-70">
+        <legend className="sr-only">Datos del movimiento</legend>
+        <div className="grid grid-cols-2 rounded-lg border border-border bg-background/50 p-1">
+          {([{ key: "EXPENSE", label: "Gasto", Icon: ArrowDownLeft }, { key: "INCOME", label: "Ingreso", Icon: ArrowUpRight }] as const).map(({ key, label, Icon }) => (
+            <button key={key} type="button" aria-pressed={type === key} onClick={() => { setType(key); setCategory(""); setError(null); }}
+              className={cn("flex min-h-10 items-center justify-center gap-2 rounded-md border text-sm transition-colors", type === key ? "border-primary/70 bg-primary/10 text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
+              <Icon className="size-4" />{label}
+            </button>
+          ))}
         </div>
-        {error && <p className="mt-1.5 text-xs text-primary">{error}</p>}
-      </div>
-
-      {/* Cuenta */}
-      <div>
-        <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
-          Cuenta
-        </span>
-        <div className="grid grid-cols-2 gap-2">
-          {isLoadingAccount ? (
-            <>
-              <Skeleton className="h-15 w-50 flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors" />
-              <Skeleton className="h-15 w-50 flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors" />
-            </>
-          ) : (
-            accounts?.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                onClick={() => setAccount(a.id)}
-                className={cn(
-                  "flex flex-col items-start rounded-xl border px-3 py-2.5 text-left transition-colors",
-                  account === a.id
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-secondary hover:border-muted-foreground/40",
-                )}
-              >
-                <span className="text-sm font-medium">{a.name}</span>
-                <span className="text-xs text-muted-foreground">{a.name}</span>
-              </button>
-            ))
-          )}
+        <div>
+          <label htmlFor={prefix + "-amount"} className="mb-1.5 block text-xs text-muted-foreground">Monto · ARS</label>
+          <div className="flex items-center rounded-lg border border-input bg-background/50 px-3 focus-within:border-primary">
+            <span className="text-3xl font-semibold" aria-hidden="true">$</span>
+            <input id={prefix + "-amount"} ref={amountRef} inputMode="decimal" autoComplete="off" maxLength={20}
+              value={amount} placeholder="0" aria-describedby={error ? prefix + "-error" : undefined}
+              onChange={(event) => { setAmount(event.target.value); setError(null); }}
+              onBlur={() => { const value = parseMoneyInput(amount); if (value !== null) setAmount(formatMoneyInput(value)); }}
+              className="vaulty-number h-14 w-full min-w-0 bg-transparent px-2 text-[32px] font-semibold outline-none placeholder:text-muted-foreground/60" />
+          </div>
         </div>
-      </div>
-
-      {/* Categoría */}
-      <div>
-        <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
-          Categoría
-        </span>
-        <div className="flex flex-wrap gap-2">
-          {isLoadingCategories ? (
-            <>
-              <Skeleton className="flex h-8 w-24 items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors" />
-              <Skeleton className="flex h-8 w-24 items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors" />
-              <Skeleton className="flex h-8 w-24 items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors" />
-              <Skeleton className="flex h-8 w-24 items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors" />
-            </>
-          ) : (
-            categories?.map((c, key) => {
-              const active = category === c.id;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setCategory(c.id)}
-                  className={cn(
-                    "flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                    active
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "border-border bg-secondary text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {active && <Check className="size-3.5 text-primary" />}
-                  {c.name}
+        {(categoryError || accountError) ? (
+          <div role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm">
+            No pudimos cargar tus cuentas o categorías.
+            <button type="button" className="mt-2 block text-primary underline" onClick={() => { void reloadCategories(); void reloadAccounts(); }}>Reintentar</button>
+          </div>
+        ) : (
+          <>
+            <div role="group" aria-label="Categoría" className="flex flex-wrap gap-2">
+              {loadingCategories ? <span className="text-sm text-muted-foreground">Cargando categorías…</span> : visibleCategories.map((item) => (
+                <button key={item.id} type="button" aria-pressed={category === item.id} onClick={() => { setCategory(item.id); setError(null); }}
+                  className={cn("flex min-h-11 items-center gap-1.5 rounded-lg border px-3 text-sm", category === item.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-background/30 text-muted-foreground hover:border-primary/50")}>
+                  {category === item.id && <Check className="size-3.5" />}{item.name}
                 </button>
-              );
-            })
-          )}
-          {/* Opcional: Asegurarse de pasar el type seleccionado al popover */}
-          <CategoryFormPopover type={type} />
+              ))}
+              {options.length > 3 && <button type="button" aria-expanded={showAll} onClick={() => setShowAll(!showAll)} className="min-h-11 rounded-lg border border-border px-3 text-xs text-muted-foreground">{showAll ? "Menos" : "Más"}</button>}
+              <CategoryFormPopover type={type} buttonVariant="outline" />
+              {!loadingCategories && options.length === 0 && <p className="w-full text-xs text-muted-foreground">Creá tu primera categoría con el botón +.</p>}
+            </div>
+            <div className="relative">
+              <label htmlFor={prefix + "-account"} className="sr-only">Cuenta</label>
+              <Wallet className="pointer-events-none absolute left-3 top-3.5 size-4 text-muted-foreground" />
+              <select id={prefix + "-account"} value={accountId} onChange={(event) => setAccount(event.target.value)} className="vaulty-input appearance-none pl-10 pr-9 text-sm" disabled={loadingAccounts || accounts.length === 0}>
+                {accounts.length === 0 && <option value="">{loadingAccounts ? "Cargando cuentas…" : "No hay cuentas disponibles"}</option>}
+                {accounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select><ChevronDown className="pointer-events-none absolute right-3 top-3.5 size-4 text-muted-foreground" />
+            </div>
+          </>
+        )}
+        <div className="relative">
+          <label htmlFor={prefix + "-day"} className="sr-only">Fecha</label>
+          <CalendarDays className="pointer-events-none absolute left-3 top-3.5 size-4 text-muted-foreground" />
+          <select id={prefix + "-day"} value={dateMode} onChange={(event) => setDateMode(event.target.value)} className="vaulty-input appearance-none pl-10 pr-9 text-sm">
+            <option value="today">Hoy</option><option value="yesterday">Ayer</option><option value="custom">Otra fecha</option>
+          </select><ChevronDown className="pointer-events-none absolute right-3 top-3.5 size-4 text-muted-foreground" />
         </div>
-      </div>
-
-      {/* Concepto (opcional) */}
-      <div>
-        <label
-          htmlFor="tx-name"
-          className="mb-1.5 block text-xs font-medium text-muted-foreground"
-        >
-          Concepto <span className="text-muted-foreground/60">(opcional)</span>
-        </label>
-        <input
-          id="tx-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Ej. Cena con amigos"
-          className="h-11 w-full rounded-xl border border-border bg-secondary px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-primary"
-        />
-      </div>
-
-      <div className="mt-1 flex gap-2">
-        <button
-          type="button"
-          onClick={closeForm}
-          className="h-11 flex-1 rounded-xl border border-border bg-secondary text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70"
-        >
-          Cancelar
-        </button>
-        <Button
-          type="submit"
-          disabled={!isValid}
-          className="h-11 flex-[1.5] rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-        >
-          {initialData ? "Actualizar transacción" : "Guardar transacción"}
+        {dateMode === "custom" && <label className="text-xs text-muted-foreground">Fecha del movimiento<input type="date" className="vaulty-input mt-1 text-sm" value={date} onChange={(event) => setDate(event.target.value)} required /></label>}
+        {showNote ? <label className="text-xs text-muted-foreground">Nota (opcional)<input autoComplete="off" maxLength={255} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Ej. Compra del supermercado" className="vaulty-input mt-1 text-sm" /></label>
+          : <button type="button" onClick={() => setShowNote(true)} className="flex min-h-9 items-center gap-1.5 text-left text-xs text-muted-foreground hover:text-primary"><Plus className="size-3.5" />Agregar nota (opcional)</button>}
+        {error && <p id={prefix + "-error"} role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
+        <Button type="submit" disabled={saving || loadingAccounts || loadingCategories || accountError || categoryError || !accounts.length} className="h-12 w-full rounded-lg text-sm font-semibold hover:bg-primary/90">
+          {saving && <LoaderCircle className="mr-2 size-4 animate-spin" />}{saving ? "Guardando…" : initialData ? "Guardar cambios" : type === "EXPENSE" ? "Guardar gasto" : "Guardar ingreso"}
         </Button>
-      </div>
+        {!inline && <button type="button" onClick={closeForm} className="min-h-9 text-sm text-muted-foreground">Cancelar</button>}
+      </fieldset>
     </form>
   );
 }

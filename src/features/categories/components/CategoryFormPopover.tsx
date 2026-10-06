@@ -24,8 +24,10 @@ function CategoryFormPopover({
       <PopoverTrigger
         render={
           <Button
+            type="button"
+            aria-label="Crear categoría"
             variant={buttonVariant}
-            className="flex items-center gap-1 rounded-full border border-dashed border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+            className="flex min-h-11 items-center gap-1 rounded-lg border border-dashed border-border px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
           >
             <Plus className="size-4" />
             <span className="hidden sm:inline">Nueva</span>
