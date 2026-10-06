@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: "dark",
-  themeColor: "#0F1A20",
+  themeColor: "#090e0c",
 };
 
 export default function RootLayout({
@@ -41,30 +41,7 @@ export default function RootLayout({
             closeButton
             theme="dark"
             toastOptions={{
-              classNames: {
-                // Tarjeta base con borde naranja brillante y sombra de neón sutil
-                toast:
-                  "!bg-[#131A22] !text-white !border !border-[#FF3D00] shadow-lg shadow-[#FF3D00]/15 rounded-xl",
-                title: "!font-semibold !text-white",
-                description: "!text-[#A0AEC0]",
-
-                // Icono interno en naranja brillante
-                icon: "!text-[#FF3D00]",
-
-                // Botones de acción y cierre integrados con el tema
-                actionButton:
-                  "!bg-[#FF3D00] !text-white hover:!bg-[#E03600] !border-none transition-colors font-medium",
-                cancelButton:
-                  "!bg-[#242E38] !text-white hover:!bg-[#2E3B48] !border-none transition-colors",
-                closeButton:
-                  "!bg-[#131A22] !text-white !border !border-[#FF3D00]/40 hover:!border-[#FF3D00]",
-
-                // Estados
-                success: "!bg-[#131A22] !text-white !border !border-[#FF3D00]",
-                warning: "!bg-[#131A22] !text-white !border !border-[#FF9800]",
-                error: "!bg-[#131A22] !text-white !border !border-[#FF3333]",
-                info: "!bg-[#131A22] !text-white !border !border-[#FF3D00]",
-              },
+              style: { background: "#17211c", color: "#edf3ef", border: "1px solid #3b5145" },
             }}
           />{" "}
         </Providers>
