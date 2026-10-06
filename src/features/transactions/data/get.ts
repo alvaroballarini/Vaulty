@@ -9,7 +9,7 @@ function getAllTransactionsDb({
 }) {
   return prisma.transaction.findMany({
     where: { userId },
-    include: { category: { select: { name: true, color: true, icon: true } } },
+    include: { account: { select: { id: true, name: true } }, category: { select: { name: true, color: true, icon: true } } },
     orderBy: { date: "desc" },
     take: limit,
   });

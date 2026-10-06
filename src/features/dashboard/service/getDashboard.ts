@@ -1,12 +1,10 @@
 "use server";
 import { APP_TIMEZONE, getLocalMonthBoundaries } from "@/lib/date-utils";
-import { format, subMonths } from "date-fns";
+import { buildPaymentOutlook } from "@/lib/payment-outlook";
 import prisma from "@/lib/prisma";
-import { formatInTimeZone } from "date-fns-tz";
 import getCurrentUser from "@/features/auth/service/getCurrentUser";
 import invalidateSession from "@/features/auth/service/invalidateSession";
 import { UnauthorizedError } from "@/features/auth/types/authType";
-import { DayOfWeek, Frequency } from "@/generated/prisma/enums";
 import getAllAccountsDb from "@/features/account/data/get";
 import getAllCategoriesDb from "@/features/categories/data/get";
 import getAllTransactionsDb from "@/features/transactions/data/get";
@@ -26,7 +24,6 @@ export async function getDashboardMetrics(date: Date = new Date()) {
 
   const {
     currentMonth,
-    currentMonthEnd,
     currentMonthStart,
     currentYear,
     prevMonthEnd,
@@ -44,6 +41,8 @@ export async function getDashboardMetrics(date: Date = new Date()) {
     prevMonthTransactions,
     currentMonthExpensesByCategory,
     budgets,
+    user,
+    accountTotals,
   ] = await Promise.all([
     getAllAccountsDb({ userId }),
     getAllCategoriesDb({ userId }),
@@ -53,7 +52,7 @@ export async function getDashboardMetrics(date: Date = new Date()) {
     // A. Saldo Total Histórico (acumulado hasta la fecha)
     prisma.transaction.groupBy({
       by: ["type"],
-      where: { userId },
+      where: { userId, date: { lte: date } },
       _sum: { amount: true },
     }),
 
@@ -72,7 +71,7 @@ export async function getDashboardMetrics(date: Date = new Date()) {
       by: ["type"],
       where: {
         userId,
-        date: { gte: currentMonthStart, lte: currentMonthEnd },
+        date: { gte: currentMonthStart, lte: date },
       },
       _sum: { amount: true },
     }),
@@ -93,7 +92,7 @@ export async function getDashboardMetrics(date: Date = new Date()) {
       where: {
         userId,
         type: "EXPENSE",
-        date: { gte: currentMonthStart, lte: currentMonthEnd },
+        date: { gte: currentMonthStart, lte: date },
       },
       _sum: { amount: true },
     }),
@@ -103,6 +102,8 @@ export async function getDashboardMetrics(date: Date = new Date()) {
       where: { userId, month: currentMonth, year: currentYear },
       include: { category: true },
     }),
+    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, name: true, email: true } }),
+    prisma.transaction.groupBy({ by: ["accountId", "type"], where: { userId, date: { lte: date } }, _sum: { amount: true } }),
   ]);
 
   // --- CÁLCULOS Y PROCESAMIENTO ---
@@ -189,83 +190,15 @@ export async function getDashboardMetrics(date: Date = new Date()) {
     totalExpense,
     recurringTransaction: recurringSummary,
     budgetProgress,
-    transactions: recentTransactions,
+    user,
+    asOf: date.toISOString(),
+    paymentOutlook: buildPaymentOutlook(recurringSummary.transactions, totalBalance, date),
+    transactions: recentTransactions.map((item) => ({ ...item, amount: Number(item.amount) })),
     categories,
-    accounts,
+    accounts: accounts.map((account) => ({ ...account, balance: accountTotals.filter((item) => item.accountId === account.id).reduce((sum, item) => sum + (item.type === "INCOME" ? Number(item._sum.amount) : item.type === "EXPENSE" ? -Number(item._sum.amount) : 0), 0) })),
   };
 }
-function calculateNextPayday(
-  frequency: Frequency,
-  day: number | string | null,
-): Date {
-  const { currentDate: referenceDate } = getLocalMonthBoundaries();
-
-  const year = Number(formatInTimeZone(referenceDate, APP_TIMEZONE, "yyyy"));
-
-  const month = Number(formatInTimeZone(referenceDate, APP_TIMEZONE, "MM")) - 1;
-
-  const today = Number(formatInTimeZone(referenceDate, APP_TIMEZONE, "dd"));
-  if (frequency === "DAILY") {
-    return new Date(Date.UTC(year, month, today + 1, 3, 0, 0, 0));
-  }
-  if (frequency === "WEEKLY") {
-    if (!day) {
-      throw new Error("El día de la semana es requerido");
-    }
-
-    const targetDay = WEEK_DAYS[day as DayOfWeek];
-
-    if (targetDay === undefined) {
-      throw new Error(`Día de la semana inválido: ${day}`);
-    }
-
-    // 0 = domingo, 1 = lunes, ..., 6 = sábado
-    const currentDayOfWeek =
-      Number(formatInTimeZone(referenceDate, APP_TIMEZONE, "i")) % 7;
-
-    let daysUntilTarget = (targetDay - currentDayOfWeek + 7) % 7;
-    if (daysUntilTarget === 0) {
-      daysUntilTarget = 7;
-    }
-
-    return new Date(Date.UTC(year, month, today + daysUntilTarget, 3, 0, 0, 0));
-  }
-
-  if (frequency === "MONTHLY") {
-    if (day === null) {
-      throw new Error("El día del mes es requerido");
-    }
-
-    const targetDay = Number(day);
-
-    if (!Number.isInteger(targetDay) || targetDay < 1 || targetDay > 31) {
-      throw new Error(`Día del mes inválido: ${day}`);
-    }
-
-    let targetYear = year;
-    let targetMonth = month;
-
-    if (today >= targetDay) {
-      targetMonth += 1;
-
-      if (targetMonth > 11) {
-        targetMonth = 0;
-        targetYear += 1;
-      }
-    }
-
-    const lastDayOfTargetMonth = new Date(
-      Date.UTC(targetYear, targetMonth + 1, 0),
-    ).getUTCDate();
-
-    const validDay = Math.min(targetDay, lastDayOfTargetMonth);
-
-    return new Date(Date.UTC(targetYear, targetMonth, validDay, 3, 0, 0, 0));
-  }
-
-  throw new Error(`Frecuencia inválida: ${frequency}`);
-}
-export async function getRecurringSummary(userId: string) {
+async function getRecurringSummary(userId: string) {
   // 1. Obtener todas las transacciones recurrentes activas del usuario
   const recurringTransactions = await prisma.recurringTransaction.findMany({
     where: {
@@ -288,15 +221,12 @@ export async function getRecurringSummary(userId: string) {
   // 2. Mapear y calcular los totales
   const formattedTransactions = recurringTransactions.map((item) => {
     const amount = Number(item.expectedAmount); // Convertir Decimal a Number
-    const nextPayday = calculateNextPayday(
-      item.frequency,
-      item.frequency === "WEEKLY" ? item.dayOfWeek : item.dayOfMonth,
-    );
+    const nextPayday = item.nextRunAt;
     if (item.type === "INCOME") {
       totalIncome += amount;
 
       // Guardar la fecha de cobro de sueldo/ingreso más cercana en el futuro
-      if (!nextIncomePayday || nextPayday < nextIncomePayday) {
+      if (nextPayday && (!nextIncomePayday || nextPayday < nextIncomePayday)) {
         nextIncomePayday = nextPayday;
       }
     } else if (item.type === "EXPENSE") {
@@ -324,16 +254,6 @@ export async function getRecurringSummary(userId: string) {
   };
 }
 
-const WEEK_DAYS: Record<DayOfWeek, number> = {
-  SUNDAY: 0,
-  MONDAY: 1,
-  TUESDAY: 2,
-  WEDNESDAY: 3,
-  THURSDAY: 4,
-  FRIDAY: 5,
-  SATURDAY: 6,
-};
-
 export const getDashboardHistory = async () => {
   const auth = await getCurrentUser();
   if (!auth.authenticated) {
@@ -348,26 +268,23 @@ export const getDashboardHistory = async () => {
 
   const userId = auth.session.userId;
   const date = new Date();
-  const { currentDate, historyStartDate } = getLocalMonthBoundaries(date);
-  const previousMonthDate = new Date(currentDate);
-  previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
-  previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
-
+  const { currentYear, currentMonth, historyStartDate } = getLocalMonthBoundaries(date);
   const [globalTransactions, monthlyHistoryRaw] = await Promise.all([
     // A. Saldo Total Histórico
     prisma.transaction.groupBy({
       by: ["type"],
-      where: { userId },
+      where: { userId, date: { lte: date } },
       _sum: { amount: true },
     }), // E. Totales mensuales (Sirve para gráfico histórico Y para extraer datos de mes actual/anterior)
     prisma.$queryRaw<{ monthKey: string; type: string; total: number }[]>`
       SELECT 
-  TO_CHAR("date" AT TIME ZONE ${APP_TIMEZONE}, 'YYYY-MM') as "monthKey",
+  TO_CHAR("date" AT TIME ZONE 'UTC' AT TIME ZONE ${APP_TIMEZONE}, 'YYYY-MM') as "monthKey",
   "type",
   SUM("amount")::float as total
 FROM "Transaction"
 WHERE "userId" = ${userId}
   AND "date" >= ${historyStartDate}
+  AND "date" <= ${date}
 GROUP BY 1, 2
 ORDER BY 1 ASC
     `,
@@ -391,9 +308,9 @@ ORDER BY 1 ASC
   let runningBalance = totalBalance;
 
   for (let i = 0; i < 36; i++) {
-    const targetDate = subMonths(currentDate, i);
-    const monthKey = format(targetDate, "yyyy-MM");
-    const monthLabel = format(targetDate, "MMM yyyy");
+    const targetDate = new Date(Date.UTC(currentYear, currentMonth - 1 - i, 1));
+    const monthKey = targetDate.toISOString().slice(0, 7);
+    const monthLabel = new Intl.DateTimeFormat("es-AR", { month: "short", year: "numeric", timeZone: "UTC" }).format(targetDate);
 
     const monthData = monthlyMap.get(monthKey) || { income: 0, expense: 0 };
     const netChange = monthData.income - monthData.expense;
