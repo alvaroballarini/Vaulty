@@ -34,7 +34,7 @@ export function BudgetDialog({ buttonVariant = "default" }: BudgetDialogProps) {
           <DialogTitle>Nuevo presupuesto</DialogTitle>
         </DialogHeader>
 
-        <BudgetForm />
+        <BudgetForm close={() => setIsOpen(false)} />
       </DialogContent>
     </Dialog>
   );

@@ -91,8 +91,8 @@ export function TransactionForm({ isOpen, closeForm, initialData, inline = false
 
   if (!isOpen) return null;
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3.5" aria-label={initialData ? "Editar movimiento" : "Registro rápido"}>
-      <fieldset disabled={saving} className="flex min-w-0 flex-col gap-3.5 disabled:opacity-70">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2.5" aria-label={initialData ? "Editar movimiento" : "Registro rápido"}>
+      <fieldset disabled={saving} className="flex min-w-0 flex-col gap-2.5 disabled:opacity-70">
         <legend className="sr-only">Datos del movimiento</legend>
         <div className="grid grid-cols-2 rounded-lg border border-border bg-background/50 p-1">
           {([{ key: "EXPENSE", label: "Gasto", Icon: ArrowDownLeft }, { key: "INCOME", label: "Ingreso", Icon: ArrowUpRight }] as const).map(({ key, label, Icon }) => (

@@ -1,51 +1,18 @@
 "use client";
-
-import { TransactionDialog } from "@/features/transactions/components/TransactionDialog";
+import { Eye, EyeOff } from "lucide-react";
 import UserDropdown from "@/features/user/component/userDropdown";
 import NotificationCenter from "./NotificationCenter";
-import { user } from "@/lib/finance-data";
-import { Search } from "lucide-react";
-
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 6) return "Buenas noches";
-  if (h < 13) return "Buenos días";
-  if (h < 20) return "Buenas tardes";
-  return "Buenas noches";
-}
-
-export function Topbar() {
-  const today = new Intl.DateTimeFormat("es-ES", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  }).format(new Date());
-
-  return (
-    <header className="flex flex-col gap-4 border-b border-border px-5 py-5 md:flex-row md:items-center md:justify-between md:px-8">
-      <div>
-        <p className="text-sm text-muted-foreground capitalize">{today}</p>
-        <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-balance">
-          {getGreeting()}, {user.name}
-        </h1>
-      </div>
-
-      <div className="flex items-center gap-2.5">
-        <div className="relative hidden sm:block">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            placeholder="Buscar movimientos…"
-            aria-label="Buscar movimientos"
-            className="h-10 w-48 rounded-xl border border-border bg-secondary pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary lg:w-60"
-          />
-        </div>
-
-        <NotificationCenter />
-
-        <TransactionDialog />
-        <UserDropdown />
-      </div>
-    </header>
-  );
+import { VaultyLogo } from "./VaultyLogo";
+import { APP_TIMEZONE } from "@/lib/date-utils";
+export function Topbar({ user, hidden, onToggle, asOf }: { user?: { name: string | null; email: string }; hidden: boolean; onToggle: () => void; asOf?: string }) {
+  const date = asOf ? new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: APP_TIMEZONE }).format(new Date(asOf)) : "Tu resumen personal";
+  return <header className="mb-5 flex items-center justify-between gap-3">
+    <div className="hidden lg:block"><h1 className="text-[clamp(1.5rem,2.5vw,2.25rem)] font-semibold tracking-tight">Tu dinero, en perspectiva.</h1><p className="mt-1 text-sm capitalize text-muted-foreground">{date}</p></div>
+    <a href="#inicio" className="lg:hidden" aria-label="Vaulty, inicio"><VaultyLogo /></a>
+    <div className="flex items-center gap-1 sm:gap-2">
+      <button onClick={onToggle} aria-label={hidden ? "Mostrar importes" : "Ocultar importes"} aria-pressed={hidden} className="flex size-11 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground">{hidden ? <EyeOff className="size-5" /> : <Eye className="size-5" />}</button>
+      <NotificationCenter hiddenAmounts={hidden} />
+      <UserDropdown user={user} />
+    </div>
+  </header>;
 }

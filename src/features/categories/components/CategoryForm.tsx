@@ -26,7 +26,7 @@ function CategoryForm({ type, close }: CategoryFormProps) {
   const [form, setForm] = useState({
     name: "",
     color: "#10b981",
-    icon: "ArrowUp",
+    icon: "Wallet",
   });
   const queryClient = useQueryClient();
 
@@ -34,12 +34,13 @@ function CategoryForm({ type, close }: CategoryFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    setIsLoading(true);
+    if (isLoading) return;
     if (!form.name.trim()) {
       setError("El nombre es obligatorio");
       return;
     }
 
+    setIsLoading(true);
     try {
       await createCategoryService({
         ...form,
@@ -89,6 +90,7 @@ function CategoryForm({ type, close }: CategoryFormProps) {
         <label className="mb-1.5 block text-xs font-medium">Color</label>
 
         <input
+          aria-label="Color de la categoría"
           type="color"
           value={form.color}
           onChange={(e) =>
@@ -100,10 +102,12 @@ function CategoryForm({ type, close }: CategoryFormProps) {
           className="h-11 w-full cursor-pointer rounded-xl border"
         />
       </div>
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-5 gap-1">
         {icons.map((icon) => (
           <button
             key={icon.name}
+            aria-label={icon.name}
+            aria-pressed={form.icon === icon.name}
             type="button"
             onClick={() =>
               setForm((prev) => ({
@@ -112,7 +116,7 @@ function CategoryForm({ type, close }: CategoryFormProps) {
               }))
             }
             className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-lg border",
+              "flex h-10 w-full items-center justify-center rounded-lg border",
               form.icon === icon.name && "border-primary bg-primary/10",
             )}
           >
@@ -122,6 +126,7 @@ function CategoryForm({ type, close }: CategoryFormProps) {
       </div>
       <div className="flex gap-2">
         <Button
+          type="button"
           onClick={handleSubmit}
           disabled={!isValid}
           className="h-11 flex-[1.5] rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"

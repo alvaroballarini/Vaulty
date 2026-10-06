@@ -1,6 +1,6 @@
 import createRecurringTransactionService from "@/features/RecurringTransaction/service/createRecurringTransactionService";
 import CategoryFormPopover from "@/features/categories/components/CategoryFormPopover";
-import { expenseCategories, incomeCategories } from "@/lib/finance-data";
+import { parseMoneyInput } from "@/lib/money";
 import getCategories from "@/features/categories/hooks/getCategories";
 import { ArrowDownRight, ArrowUpRight, Check } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -62,29 +62,28 @@ export function RecurringTransactionForm({ isOpen, closeForm }: Props) {
   function selectType(next: TxType) {
     setType(next);
     // Ajusta la categoría por defecto al cambiar de tipo
-    setCategory(
-      next === "EXPENSE" ? expenseCategories[0] : incomeCategories[0],
-    );
+    setCategory("");
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setIsLoadingSubmit(true);
-    const value = Number.parseFloat(amount.replace(",", "."));
+    if (isLoadingSubmit) return;
+    const value = parseMoneyInput(amount);
     if (!value || value <= 0) {
       setError("Introduce un monto válido mayor que 0.");
       amountRef.current?.focus();
       return;
     }
+    setIsLoadingSubmit(true);
     try {
       await createRecurringTransactionService({
-        expectedAmount: Number(amount),
+        expectedAmount: value,
         frequency: frequency,
         categoryId: category,
         accountId: account,
         dayOfMonth: frequency === "MONTHLY" ? dayOfMonth : null,
         dayOfWeek: frequency === "WEEKLY" ? dayOfWeek  : null,
-        description: name,
+        description: name.trim() || categories?.find((item) => item.id === category)?.name || "Movimiento programado",
         isActive: true,
         type: type,
       });
@@ -92,13 +91,13 @@ export function RecurringTransactionForm({ isOpen, closeForm }: Props) {
         queryKey: ["dashboard"],
       });
 
-      toast.success("Se creo una transacción");
+      toast.success("Movimiento programado");
+      closeForm();
     } catch {
-      toast.warning("Hubo un error");
+      setError("No se pudo guardar. Revisá los datos e intentá nuevamente.");
     }
 
-    setIsLoadingSubmit(true);
-    closeForm();
+    setIsLoadingSubmit(false);
   }
   const isValid: boolean =
     amount.length > 0 &&
@@ -157,7 +156,7 @@ export function RecurringTransactionForm({ isOpen, closeForm }: Props) {
             className="h-14 w-full bg-transparent px-2 font-mono text-2xl font-semibold tabular-nums outline-none placeholder:text-muted-foreground/50"
           />
         </div>
-        {error && <p className="mt-1.5 text-xs text-primary">{error}</p>}
+        {error && <p role="alert" className="mt-1.5 text-xs text-destructive">{error}</p>}
       </div>
       {/* Cuenta */}
       <div>
@@ -204,7 +203,7 @@ export function RecurringTransactionForm({ isOpen, closeForm }: Props) {
               <Skeleton className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors h-8 w-24" />
             </>
           ) : (
-            categories?.map((c, key) => {
+            categories?.filter((c) => c.type === type).map((c, key) => {
               const active = category === c.id;
               return (
                 <button
@@ -224,7 +223,7 @@ export function RecurringTransactionForm({ isOpen, closeForm }: Props) {
               );
             })
           )}
-          <CategoryFormPopover type={"EXPENSE"} />
+          <CategoryFormPopover type={type} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -282,7 +281,7 @@ export function RecurringTransactionForm({ isOpen, closeForm }: Props) {
           disabled={!isValid}
           className="h-11 flex-[1.5] rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
-          Guardar transacción
+          {isLoadingSubmit ? "Guardando…" : "Guardar programación"}
         </Button>
       </div>
     </form>

@@ -93,6 +93,7 @@
   ::selection { background: #34d39940; color: #fff; }
 }
 
+@layer components {
 .vaulty-shell {
   min-height: 100dvh;
   background: radial-gradient(ellipse 65% 38rem at 48% -10%, #15573850, transparent 80%), var(--background);
@@ -112,7 +113,22 @@
 .vaulty-number { font-variant-numeric: tabular-nums; letter-spacing: -0.035em; }
 .vaulty-section { scroll-margin-top: 24px; }
 .vaulty-mobile-nav { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+}
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+.vaulty-dashboard-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "overview" "estimate" "entry" "planning" "chart" "ledger";
+}
+@media (min-width: 1100px) {
+  .vaulty-dashboard-grid {
+    grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr);
+    grid-template-areas: "overview entry" "estimate entry" "chart planning" "ledger ledger";
+    align-items: stretch;
+  }
 }

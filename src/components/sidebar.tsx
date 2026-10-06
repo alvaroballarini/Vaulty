@@ -1,92 +1,36 @@
 "use client";
-
 import { useState } from "react";
-import {
-  LayoutGrid,
-  ArrowLeftRight,
-  PieChart,
-  Target,
-  Wallet,
-  CreditCard,
-  Settings,
-  LifeBuoy,
-} from "lucide-react";
+import { House, List, WalletCards, ChartPie, CalendarDays, Ellipsis, Sprout } from "lucide-react";
+import { VaultyLogo } from "./VaultyLogo";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 
-const nav = [
-  { label: "Resumen", icon: LayoutGrid, active: true },
-  { label: "Movimientos", icon: ArrowLeftRight },
-  { label: "Análisis", icon: PieChart },
-  { label: "Presupuestos", icon: Wallet },
-  { label: "Objetivos", icon: Target },
-  { label: "Tarjetas", icon: CreditCard },
+const links = [
+  { id: "inicio", label: "Inicio", Icon: House },
+  { id: "movimientos", label: "Movimientos", Icon: List },
+  { id: "cuentas", label: "Cuentas", Icon: WalletCards },
+  { id: "presupuestos", label: "Presupuestos", Icon: ChartPie },
+  { id: "planificacion", label: "Planificación", Icon: CalendarDays },
 ];
-
-const secondary = [
-  { label: "Ajustes", icon: Settings },
-  { label: "Ayuda", icon: LifeBuoy },
-];
-
-export function Sidebar() {
-  const [active, setActive] = useState("Resumen");
-
-  return (
-    <aside className="hidden lg:flex lg:w-64 xl:w-72 shrink-0 flex-col gap-8 border-r border-border bg-sidebar px-5 py-6">
-      <div className="flex items-center gap-2.5 px-2">
-        <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <Wallet className="size-5" aria-hidden="true" />
-        </div>
-        <span className="text-lg font-semibold tracking-tight">Vaulty</span>
-      </div>
-
-      <nav className="flex flex-1 flex-col gap-1" aria-label="Principal">
-        <p className="px-3 pb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Menú
-        </p>
-        {nav.map((item) => {
-          const isActive = active === item.label;
-          return (
-            <button
-              key={item.label}
-              onClick={() => setActive(item.label)}
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-              )}
-              aria-current={isActive ? "page" : undefined}
-            >
-              <item.icon className="size-[18px]" aria-hidden="true" />
-              {item.label}
-            </button>
-          );
-        })}
-
-        <p className="px-3 pb-2 pt-6 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          General
-        </p>
-        {secondary.map((item) => (
-          <button
-            key={item.label}
-            onClick={() => setActive(item.label)}
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <item.icon className="size-[18px]" aria-hidden="true" />
-            {item.label}
-          </button>
-        ))}
+export function Sidebar({ onNavigate }: { onNavigate: (id: string) => void }) {
+  const [active, setActive] = useState("inicio");
+  const [more, setMore] = useState(false);
+  function navigate(id: string) { setActive(id); setMore(false); onNavigate(id); }
+  return <>
+    <aside className="sticky top-0 hidden h-dvh w-[212px] shrink-0 flex-col border-r border-border/60 bg-sidebar/85 px-4 py-8 lg:flex xl:w-[230px]">
+      <a href="#inicio" onClick={() => navigate("inicio")} aria-label="Vaulty, ir al inicio" className="px-3"><VaultyLogo /></a>
+      <nav aria-label="Navegación principal" className="mt-10 flex flex-col gap-2">
+        {links.map(({ id, label, Icon }) => <button key={id} onClick={() => navigate(id)} aria-current={active === id ? "location" : undefined} className={cn("flex min-h-12 items-center gap-3 rounded-lg px-3 text-left text-sm transition-colors", active === id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground")}><Icon className="size-5" />{label}</button>)}
       </nav>
-
-      <div className="rounded-2xl bg-secondary p-4">
-        <p className="text-sm font-medium">Vaulty Premium</p>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          Desbloquea informes avanzados y categorías ilimitadas.
-        </p>
-        <button className="mt-3 w-full rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90">
-          Mejorar plan
-        </button>
+      <div className="mt-auto rounded-xl border border-primary/10 bg-primary/5 p-4">
+        <Sprout className="mb-3 size-5 text-primary" /><p className="text-sm font-medium">Un hábito, más claridad.</p><p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">Cada movimiento te ayuda a entender mejor tu dinero.</p>
       </div>
+      <p className="mt-4 px-3 text-[11px] text-muted-foreground">Vaulty · Finanzas personales</p>
     </aside>
-  );
+    <nav aria-label="Navegación móvil" className="vaulty-mobile-nav fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border bg-sidebar/95 px-2 pt-2 backdrop-blur-xl lg:hidden">
+      {links.slice(0, 3).map(({ id, label, Icon }) => <button key={id} onClick={() => navigate(id)} aria-current={active === id ? "location" : undefined} className={cn("flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg text-[10px]", active === id ? "text-primary" : "text-muted-foreground")}><Icon className="size-5" />{label}</button>)}
+      <button onClick={() => setMore(true)} className={cn("flex min-h-12 flex-col items-center justify-center gap-1 text-[10px]", ["planificacion", "presupuestos"].includes(active) ? "text-primary" : "text-muted-foreground")}><Ellipsis className="size-5" />Más</button>
+    </nav>
+    <Dialog open={more} onOpenChange={setMore}><DialogContent><DialogHeader><DialogTitle>Más en Vaulty</DialogTitle></DialogHeader>{links.slice(3).map(({ id, label, Icon }) => <button key={id} onClick={() => navigate(id)} className="flex min-h-12 items-center gap-3 rounded-lg px-3 text-left hover:bg-secondary"><Icon className="size-5 text-primary" />{label}</button>)}</DialogContent></Dialog>
+  </>;
 }

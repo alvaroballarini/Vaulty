@@ -4,6 +4,9 @@ import { Category } from "../categories/type/type";
 import { transactionType } from "../transactions/types/type";
 
 export interface DashboardType {
+  user: { id: string; name: string | null; email: string };
+  asOf: string;
+  paymentOutlook: import("@/lib/payment-outlook").PaymentOutlook;
   metrics: DashboardMetrics;
   transactions: transactionType[];
   categories: Category[];

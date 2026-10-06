@@ -1,23 +1,9 @@
 "use server";
-
 import getCurrentUser from "@/features/auth/service/getCurrentUser";
-import { CreateCategoryInput } from "../type/schemaCategory";
+import { CreateCategoryInput, createCategorySchema } from "../type/schemaCategory";
 import createCategoryDb from "../data/create";
-
-async function createCategoryService(data: CreateCategoryInput) {
+export default async function createCategoryService(data: CreateCategoryInput) {
   const auth = await getCurrentUser();
-  if (!auth.authenticated) {
-    throw new Error("User not authenticated");
-  }
-
-  try {
-    await createCategoryDb({
-      ...data,
-      userId: auth.session.userId,
-    });
-  } catch (error) {
-    console.log(error);
-  }
+  if (!auth.authenticated) throw new Error("Sesión vencida");
+  await createCategoryDb({ ...createCategorySchema.parse(data), userId: auth.session.userId });
 }
-
-export default createCategoryService;
