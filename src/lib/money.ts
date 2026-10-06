@@ -10,9 +10,13 @@ export function parseMoneyInput(input: string): number | null {
     normalized = value;
   } else return null;
   const amount = Number(normalized);
-  return Number.isFinite(amount) && amount > 0 && amount <= 9999999999.99 ? amount : null;
+  return Number.isFinite(amount) && amount > 0 && amount <= 9999999999.99
+    ? amount
+    : null;
 }
 
 export function formatMoneyInput(value: number): string {
-  return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(value);
+  return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(
+    value,
+  );
 }

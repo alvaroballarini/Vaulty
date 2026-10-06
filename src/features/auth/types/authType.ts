@@ -1,4 +1,4 @@
-import { Session, User } from "@/generated/prisma/client";
+import { Session } from "@/generated/prisma/client";
 
 export type AuthResult =
   | {

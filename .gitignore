@@ -50,3 +50,6 @@ out/
 next-env.d.ts
 
 /src/generated/prisma
+
+# Local browser verification artifacts
+/output/verification/

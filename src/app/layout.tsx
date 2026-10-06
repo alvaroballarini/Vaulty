@@ -13,8 +13,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Vaulty — Panel Financiero",
   description:
-    "Controla tu saldo, ingresos, gastos, ahorro, presupuestos y objetivos en un solo lugar.",
-  generator: "v0.app",
+    "Organizá tus cuentas, registrá movimientos y entendé tu dinero con Vaulty.",
 };
 
 export const viewport: Viewport = {
@@ -41,7 +40,11 @@ export default function RootLayout({
             closeButton
             theme="dark"
             toastOptions={{
-              style: { background: "#17211c", color: "#edf3ef", border: "1px solid #3b5145" },
+              style: {
+                background: "#17211c",
+                color: "#edf3ef",
+                border: "1px solid #3b5145",
+              },
             }}
           />{" "}
         </Providers>

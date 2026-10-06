@@ -82,8 +82,11 @@ export function RecurringTransactionForm({ isOpen, closeForm }: Props) {
         categoryId: category,
         accountId: account,
         dayOfMonth: frequency === "MONTHLY" ? dayOfMonth : null,
-        dayOfWeek: frequency === "WEEKLY" ? dayOfWeek  : null,
-        description: name.trim() || categories?.find((item) => item.id === category)?.name || "Movimiento programado",
+        dayOfWeek: frequency === "WEEKLY" ? dayOfWeek : null,
+        description:
+          name.trim() ||
+          categories?.find((item) => item.id === category)?.name ||
+          "Movimiento programado",
         isActive: true,
         type: type,
       });
@@ -156,7 +159,11 @@ export function RecurringTransactionForm({ isOpen, closeForm }: Props) {
             className="h-14 w-full bg-transparent px-2 font-mono text-2xl font-semibold tabular-nums outline-none placeholder:text-muted-foreground/50"
           />
         </div>
-        {error && <p role="alert" className="mt-1.5 text-xs text-destructive">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-1.5 text-xs text-destructive">
+            {error}
+          </p>
+        )}
       </div>
       {/* Cuenta */}
       <div>
@@ -203,25 +210,27 @@ export function RecurringTransactionForm({ isOpen, closeForm }: Props) {
               <Skeleton className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors h-8 w-24" />
             </>
           ) : (
-            categories?.filter((c) => c.type === type).map((c, key) => {
-              const active = category === c.id;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setCategory(c.id)}
-                  className={cn(
-                    "flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                    active
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "border-border bg-secondary text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {active && <Check className="size-3.5 text-primary" />}
-                  {c.name}
-                </button>
-              );
-            })
+            categories
+              ?.filter((c) => c.type === type)
+              .map((c, key) => {
+                const active = category === c.id;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setCategory(c.id)}
+                    className={cn(
+                      "flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+                      active
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-secondary text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {active && <Check className="size-3.5 text-primary" />}
+                    {c.name}
+                  </button>
+                );
+              })
           )}
           <CategoryFormPopover type={type} />
         </div>

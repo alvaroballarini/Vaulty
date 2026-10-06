@@ -1,7 +1,9 @@
 import { UnauthorizedError } from "@/features/auth/types/authType";
 import { DashboardType } from "@/features/dashboard/type";
 
-export default async function getDashboardHistory(): Promise<Pick<DashboardType, "historyMonthly">> {
+export default async function getDashboardHistory(): Promise<
+  Pick<DashboardType, "historyMonthly">
+> {
   try {
     const res = await fetch("/api/dashboard/history", {
       method: "GET",

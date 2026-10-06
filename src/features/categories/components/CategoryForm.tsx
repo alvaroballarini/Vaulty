@@ -60,7 +60,10 @@ function CategoryForm({ type, close }: CategoryFormProps) {
     setIsLoading(false);
   };
   const isValid =
-    form.name.length > 0 && form.color.length > 0 && form.icon.length > 0 && !isLoading;
+    form.name.length > 0 &&
+    form.color.length > 0 &&
+    form.icon.length > 0 &&
+    !isLoading;
   return (
     <div className="mt-4 flex flex-col gap-4">
       <div>

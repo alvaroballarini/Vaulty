@@ -98,4 +98,3 @@ export interface GlobalBudgetSummary {
   freeBudget: number; // Ej: 1020
   spentBudget: number; // Ej: 3180
 }
-

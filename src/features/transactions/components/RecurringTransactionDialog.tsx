@@ -36,7 +36,10 @@ export function RecurringTransactionDialog({
           <DialogTitle>Nueva actividad programada</DialogTitle>
         </DialogHeader>
 
-        <RecurringTransactionForm isOpen={isOpen} closeForm={() => setIsOpen(false)} />
+        <RecurringTransactionForm
+          isOpen={isOpen}
+          closeForm={() => setIsOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );

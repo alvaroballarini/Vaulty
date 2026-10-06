@@ -1,4 +1,3 @@
-
 import CategoryForm from "@/features/categories/components/CategoryForm";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { VariantProps } from "class-variance-authority";

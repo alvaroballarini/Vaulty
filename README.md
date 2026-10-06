@@ -18,9 +18,13 @@ Vaulty nació como una herramienta de uso personal y real. El proyecto busca con
 
 ### Movimientos
 
-- Registro de ingresos y gastos.
+- Registro rápido de ingresos y gastos desde el panel, con importes argentinos (por ejemplo, `18.500,50`).
+- Selección de cuenta, categorías según el tipo de movimiento, fecha y nota opcional.
+- Recuerdo de la última cuenta elegida por usuario en el navegador.
+- Edición con datos precargados, validación en servidor y confirmación antes de eliminar.
+- Conservación del borrador cuando falla el guardado.
 - Asociación de cada movimiento con una cuenta y una categoría.
-- Listado de los movimientos recientes.
+- Listado y búsqueda entre los últimos 10 movimientos (no busca en todo el historial).
 - Eliminación de movimientos.
 - Actualización automática de los indicadores del panel después de cada cambio.
 
@@ -28,14 +32,18 @@ Vaulty nació como una herramienta de uso personal y real. El proyecto busca con
 
 - Saldo acumulado a partir del historial registrado.
 - Ingresos, gastos y ahorro del mes actual.
-- Comparación porcentual con el mes anterior.
+- Saldos por cuenta calculados hasta el momento de consulta.
 - Historial de hasta 36 meses.
-- Gráfico de evolución para períodos de 6 meses, 1 año y 3 años.
-- Resumen de presupuestos y dinero disponible.
+- Gráfico de evolución con vistas de 6 meses y 1 año, más una alternativa textual accesible.
+- Estimación del saldo tras gastos programados de los próximos 14 días; no suma ingresos futuros.
+- La estimación se omite si hay fechas programadas vencidas o sin definir.
+- Opción de ocultar importes, incluidos gráfico y notificaciones.
+- Tema oscuro esmeralda, alertas ámbar y navegación adaptada a móvil.
+- Estados de carga, vacío, error y reintento con datos reales.
 
 ### Presupuestos
 
-- Creación de límites mensuales por categoría.
+- Creación y actualización de límites mensuales por categoría de gasto.
 - Cálculo del gasto realizado en cada categoría.
 - Indicador de progreso y aviso visual cuando se supera un límite.
 - Restricción para evitar más de un presupuesto por categoría y mes.
@@ -46,7 +54,7 @@ Vaulty nació como una herramienta de uso personal y real. El proyecto busca con
 - Selección del día de la semana o del mes según la frecuencia.
 - Cálculo de la próxima ejecución.
 - Generación automática de movimientos mediante una tarea programada.
-- Resumen de ingresos y gastos recurrentes en el panel.
+- Próximos pagos e ingresos a partir de las fechas programadas almacenadas.
 
 ### Categorías y notificaciones
 
@@ -58,38 +66,42 @@ Vaulty nació como una herramienta de uso personal y real. El proyecto busca con
 
 ## Estado de las secciones
 
-| Área | Estado |
-| --- | --- |
-| Registro, inicio y cierre de sesión | Funcional |
-| Creación y eliminación de movimientos | Funcional |
-| Edición de movimientos | En desarrollo |
-| Cuentas y categorías iniciales | Funcional |
-| Categorías personalizadas | Funcional |
-| Presupuestos mensuales | Funcional, con gestión avanzada pendiente |
-| Movimientos recurrentes | Funcional, en proceso de refuerzo para producción |
-| Historial y evolución del saldo | Funcional |
-| Gastos por categoría | Interfaz creada; integración con datos reales pendiente |
-| Objetivos de ahorro | Interfaz de demostración; persistencia pendiente |
-| Búsqueda y navegación secundaria | Interfaz creada; comportamiento pendiente |
+| Área                                                      | Estado                                                       |
+| --------------------------------------------------------- | ------------------------------------------------------------ |
+| Registro, inicio y cierre de sesión                       | Funcional                                                    |
+| Registro, edición y eliminación de movimientos            | Funcional                                                    |
+| Cuentas y categorías iniciales                            | Funcional                                                    |
+| Creación de cuentas y consulta de saldos                  | Funcional                                                    |
+| Categorías personalizadas                                 | Funcional                                                    |
+| Presupuestos mensuales                                    | Funcional, con gestión avanzada pendiente                    |
+| Movimientos recurrentes                                   | Funcional, en proceso de refuerzo para producción            |
+| Historial y evolución del saldo                           | Funcional                                                    |
+| Gráfico de gastos por categoría                           | Componente previo pendiente de integración; fuera del inicio |
+| Objetivos de ahorro                                       | Prototipo sin persistencia; fuera del inicio                 |
+| Búsqueda en movimientos recientes y navegación del panel  | Funcional                                                    |
+| Búsqueda global, transferencias y edición de recurrencias | Pendiente                                                    |
 
 ## Tecnologías utilizadas
 
-| Tecnología | Uso en el proyecto |
-| --- | --- |
-| [Next.js 16](https://nextjs.org/) | Aplicación full stack con App Router, Route Handlers y Server Actions |
-| [React 19](https://react.dev/) | Construcción de la interfaz |
-| [TypeScript](https://www.typescriptlang.org/) | Tipado estático |
-| [PostgreSQL](https://www.postgresql.org/) | Persistencia de usuarios y datos financieros |
-| [Prisma 7](https://www.prisma.io/) | Modelo de datos, migraciones y consultas |
-| [TanStack Query](https://tanstack.com/query) | Consultas, caché e invalidación de datos en el cliente |
-| [Tailwind CSS 4](https://tailwindcss.com/) | Estilos y diseño adaptable |
-| [Base UI](https://base-ui.com/) y componentes de shadcn | Componentes accesibles de interfaz |
-| [Recharts](https://recharts.org/) | Gráficos financieros |
-| [Framer Motion](https://www.framer.com/motion/) | Animaciones y transiciones |
-| [date-fns](https://date-fns.org/) | Cálculos de fechas y períodos |
-| [Argon2](https://github.com/ranisalt/node-argon2) | Hash seguro de contraseñas |
-| [Lucide](https://lucide.dev/) | Iconografía |
-| [Sonner](https://sonner.emilkowal.ski/) | Mensajes de confirmación y error |
+| Tecnología                                              | Uso en el proyecto                                                    |
+| ------------------------------------------------------- | --------------------------------------------------------------------- |
+| [Next.js 16](https://nextjs.org/)                       | Aplicación full stack con App Router, Route Handlers y Server Actions |
+| [React 19](https://react.dev/)                          | Construcción de la interfaz                                           |
+| [TypeScript](https://www.typescriptlang.org/)           | Tipado estático                                                       |
+| [PostgreSQL](https://www.postgresql.org/)               | Persistencia de usuarios y datos financieros                          |
+| [Prisma 7](https://www.prisma.io/)                      | Modelo de datos, migraciones y consultas                              |
+| [TanStack Query](https://tanstack.com/query)            | Consultas, caché e invalidación de datos en el cliente                |
+| [Tailwind CSS 4](https://tailwindcss.com/)              | Estilos y diseño adaptable                                            |
+| [Base UI](https://base-ui.com/) y componentes de shadcn | Componentes accesibles de interfaz                                    |
+| [Recharts](https://recharts.org/)                       | Gráficos financieros                                                  |
+| [Framer Motion](https://www.framer.com/motion/)         | Animaciones y transiciones                                            |
+| [date-fns](https://date-fns.org/) y date-fns-tz         | Fechas y zona horaria de Argentina                                    |
+| [Zod](https://zod.dev/)                                 | Validación de datos en servidor                                       |
+| [Playwright](https://playwright.dev/)                   | Pruebas de interfaz con datos simulados                               |
+| [Prettier](https://prettier.io/)                        | Formato del código                                                    |
+| [Argon2](https://github.com/ranisalt/node-argon2)       | Hash seguro de contraseñas                                            |
+| [Lucide](https://lucide.dev/)                           | Iconografía                                                           |
+| [Sonner](https://sonner.emilkowal.ski/)                 | Mensajes de confirmación y error                                      |
 
 ## Arquitectura
 
@@ -159,14 +171,34 @@ La aplicación estará disponible en [http://localhost:3000](http://localhost:30
 
 ## Comandos disponibles
 
-| Comando | Descripción |
-| --- | --- |
-| `npm run dev` | Inicia el servidor de desarrollo |
-| `npm run build` | Genera la versión optimizada para producción |
-| `npm run start` | Ejecuta la versión de producción |
-| `npm run lint` | Revisa la calidad y consistencia del código |
-| `npx prisma generate` | Genera el cliente de Prisma |
-| `npx prisma migrate dev` | Aplica migraciones en desarrollo |
+| Comando                  | Descripción                                               |
+| ------------------------ | --------------------------------------------------------- |
+| `npm run dev`            | Inicia el servidor de desarrollo                          |
+| `npm run build`          | Genera la versión optimizada para producción              |
+| `npm run start`          | Ejecuta la versión de producción                          |
+| `npm run lint`           | Revisa la calidad y consistencia del código               |
+| `npm run typecheck`      | Verifica los tipos sin generar archivos                   |
+| `npm test`               | Prueba importes, fechas, previsión y permisos de guardado |
+| `npm run test:ui`        | Prueba el panel en navegador contra un servidor local     |
+| `npx prisma generate`    | Genera el cliente de Prisma                               |
+| `npx prisma migrate dev` | Aplica migraciones en desarrollo                          |
+
+## Verificación del panel
+
+Las pruebas de interfaz usan datos ficticios e interceptan todas las llamadas a la API y los guardados. No escriben en la base real. Cubren escritorio (1440 px), móvil (390 px), tablet (768 px), privacidad, navegación, edición, validación, guardado simulado, conservación del borrador y estados vacíos/de error.
+
+Con un servidor local en el puerto 3000:
+
+```bash
+npx playwright install chromium
+npm run test:ui
+```
+
+También se puede usar un navegador instalado con la variable `BROWSER_CHANNEL=msedge` o `chrome`. Las capturas se generan en `output/verification/` y no se versionan. Las pruebas del servidor usan dobles de Prisma: verifican validación y autorización, pero no reemplazan una prueba integral con PostgreSQL.
+
+## Alcance de los números
+
+El saldo representa ingresos menos gastos registrados, no una conexión con el banco. Para incorporar dinero previo, se puede registrar un ingreso identificado como saldo inicial. Las transferencias todavía no tienen un flujo completo y no se incluyen como ingresos o gastos. El calendario y los límites mensuales usan `America/Argentina/Buenos_Aires`. El cron de recurrencias debe estar configurado para procesar pagos; el panel muestra avisos cuando sus fechas quedan atrasadas.
 
 ## Decisiones del proyecto
 
@@ -179,16 +211,15 @@ La aplicación estará disponible en [http://localhost:3000](http://localhost:30
 
 ## Próximos pasos
 
-- Completar la edición de movimientos.
 - Conectar el gráfico de categorías con datos reales.
 - Implementar objetivos de ahorro persistentes.
 - Agregar gestión completa de cuentas, categorías y presupuestos.
 - Incorporar transferencias entre cuentas.
 - Reforzar la idempotencia y autorización del proceso de movimientos recurrentes.
 - Mejorar la validación del servidor y el tratamiento de errores.
-- Añadir pruebas para cálculos financieros, fechas y flujos críticos.
+- Ampliar las pruebas con una base PostgreSQL aislada y cobertura del procesamiento recurrente.
 - Permitir exportar y respaldar el historial financiero.
-- Completar búsqueda, filtros y vistas de detalle.
+- Agregar búsqueda global, paginación del historial y filtros por período.
 
 ## Contexto
 

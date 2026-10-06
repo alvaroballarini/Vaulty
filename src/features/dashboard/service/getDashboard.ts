@@ -102,8 +102,15 @@ export async function getDashboardMetrics(date: Date = new Date()) {
       where: { userId, month: currentMonth, year: currentYear },
       include: { category: true },
     }),
-    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, name: true, email: true } }),
-    prisma.transaction.groupBy({ by: ["accountId", "type"], where: { userId, date: { lte: date } }, _sum: { amount: true } }),
+    prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { id: true, name: true, email: true },
+    }),
+    prisma.transaction.groupBy({
+      by: ["accountId", "type"],
+      where: { userId, date: { lte: date } },
+      _sum: { amount: true },
+    }),
   ]);
 
   // --- CÁLCULOS Y PROCESAMIENTO ---
@@ -192,10 +199,31 @@ export async function getDashboardMetrics(date: Date = new Date()) {
     budgetProgress,
     user,
     asOf: date.toISOString(),
-    paymentOutlook: buildPaymentOutlook(recurringSummary.transactions, totalBalance, date),
-    transactions: recentTransactions.map((item) => ({ ...item, amount: Number(item.amount) })),
+    paymentOutlook: buildPaymentOutlook(
+      recurringSummary.transactions,
+      totalBalance,
+      date,
+    ),
+    transactions: recentTransactions.map((item) => ({
+      ...item,
+      amount: Number(item.amount),
+    })),
     categories,
-    accounts: accounts.map((account) => ({ ...account, balance: accountTotals.filter((item) => item.accountId === account.id).reduce((sum, item) => sum + (item.type === "INCOME" ? Number(item._sum.amount) : item.type === "EXPENSE" ? -Number(item._sum.amount) : 0), 0) })),
+    accounts: accounts.map((account) => ({
+      ...account,
+      balance: accountTotals
+        .filter((item) => item.accountId === account.id)
+        .reduce(
+          (sum, item) =>
+            sum +
+            (item.type === "INCOME"
+              ? Number(item._sum.amount)
+              : item.type === "EXPENSE"
+                ? -Number(item._sum.amount)
+                : 0),
+          0,
+        ),
+    })),
   };
 }
 async function getRecurringSummary(userId: string) {
@@ -268,7 +296,8 @@ export const getDashboardHistory = async () => {
 
   const userId = auth.session.userId;
   const date = new Date();
-  const { currentYear, currentMonth, historyStartDate } = getLocalMonthBoundaries(date);
+  const { currentYear, currentMonth, historyStartDate } =
+    getLocalMonthBoundaries(date);
   const [globalTransactions, monthlyHistoryRaw] = await Promise.all([
     // A. Saldo Total Histórico
     prisma.transaction.groupBy({
@@ -310,7 +339,11 @@ ORDER BY 1 ASC
   for (let i = 0; i < 36; i++) {
     const targetDate = new Date(Date.UTC(currentYear, currentMonth - 1 - i, 1));
     const monthKey = targetDate.toISOString().slice(0, 7);
-    const monthLabel = new Intl.DateTimeFormat("es-AR", { month: "short", year: "numeric", timeZone: "UTC" }).format(targetDate);
+    const monthLabel = new Intl.DateTimeFormat("es-AR", {
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(targetDate);
 
     const monthData = monthlyMap.get(monthKey) || { income: 0, expense: 0 };
     const netChange = monthData.income - monthData.expense;
