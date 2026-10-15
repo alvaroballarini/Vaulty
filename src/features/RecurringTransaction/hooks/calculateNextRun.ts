@@ -1,91 +1,86 @@
-import {
-  DayOfWeek,
-  Frequency,
-  RecurringTransaction,
-} from "@/generated/prisma/client";
-import { addDays, addMonths, addWeeks } from "date-fns";
-
-export default function calculateNextRun(
-  recurring: RecurringTransaction,
-): Date {
+import type { DayOfWeek, Frequency } from "@/generated/prisma/enums";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
+import { APP_TIMEZONE } from "@/lib/date-utils";
+const days: DayOfWeek[] = [
+  "SUNDAY",
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+];
+function localParts(date: Date) {
+  return formatInTimeZone(date, APP_TIMEZONE, "yyyy-MM-dd")
+    .split("-")
+    .map(Number);
+}
+function atNoon(year: number, month: number, day: number) {
+  const calendar = new Date(Date.UTC(year, month - 1, day));
+  return fromZonedTime(
+    calendar.toISOString().slice(0, 10) + "T12:00:00",
+    APP_TIMEZONE,
+  );
+}
+function monthDate(year: number, month: number, day: number) {
+  return atNoon(
+    year,
+    month,
+    Math.min(day, new Date(Date.UTC(year, month, 0)).getUTCDate()),
+  );
+}
+export default function calculateNextRun(recurring: {
+  frequency: Frequency;
+  nextRunAt: Date | null;
+  dayOfMonth?: number | null;
+}): Date {
+  if (!recurring.nextRunAt) throw new Error("Fecha pendiente");
+  const [year, month, day] = localParts(recurring.nextRunAt);
   switch (recurring.frequency) {
     case "DAILY":
-      return addDays(recurring.nextRunAt!, 1);
-
+      return atNoon(year, month, day + 1);
     case "WEEKLY":
-      return addWeeks(recurring.nextRunAt!, 1);
-
+      return atNoon(year, month, day + 7);
     case "MONTHLY":
-      return addMonths(recurring.nextRunAt!, 1);
-
-    default:
-      throw new Error(`Unsupported frequency: ${recurring.frequency}`);
+      return monthDate(year, month + 1, recurring.dayOfMonth ?? day);
   }
 }
-
 export function calculateNextRunStart(
   frequency: Frequency,
-  dayOfWeek?: DayOfWeek | null | undefined,
-  dayOfMonth?: number | null | undefined,
+  dayOfWeek?: DayOfWeek | null,
+  dayOfMonth?: number | null,
   from: Date = new Date(),
 ): Date {
-  const next = new Date(from);
-
-  switch (frequency) {
-    case Frequency.DAILY: {
-      next.setDate(next.getDate() + 1);
-      return next;
-    }
-
-    case Frequency.WEEKLY: {
-      // Convierte DayOfWeek (MONDAY=0..SUNDAY=6) al formato de Date.getDay() (SUNDAY=0..SATURDAY=6)
-      if (!dayOfWeek) return next;
-      const dayIndex = DAY_INDEX_MAP[dayOfWeek]; // Es un número válido
-      const targetJsDay = (dayIndex + 1) % 7;
-
-      // Se posiciona a partir del día siguiente
-      next.setDate(next.getDate() + 1);
-
-      const diff = (targetJsDay - next.getDay() + 7) % 7;
-      next.setDate(next.getDate() + diff);
-      return next;
-    }
-
-    case Frequency.MONTHLY: {
-      const currentDay = next.getDate();
-      if (!dayOfMonth) return next;
-
-      if (currentDay <= dayOfMonth) {
-        // La fecha objetivo aún no ocurre en el mes actual
-        const maxDaysThisMonth = new Date(
-          next.getFullYear(),
-          next.getMonth() + 1,
-          0,
-        ).getDate();
-        next.setDate(Math.min(dayOfMonth, maxDaysThisMonth));
-      } else {
-        // La fecha ocurre en el próximo mes
-        next.setMonth(next.getMonth() + 1, 1); // Se establece temporalmente el día 1 para evitar desbordamientos de mes
-        const maxDaysNextMonth = new Date(
-          next.getFullYear(),
-          next.getMonth() + 1,
-          0,
-        ).getDate();
-        next.setDate(Math.min(dayOfMonth, maxDaysNextMonth));
-      }
-      return next;
-    }
-
-    default:
-      throw new Error(`Unsupported frequency: ${frequency}`);
+  const [year, month, day] = localParts(from);
+  if (frequency === "DAILY") return atNoon(year, month, day + 1);
+  if (frequency === "WEEKLY") {
+    if (!dayOfWeek) throw new Error("Elegí un día de la semana");
+    const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+    return atNoon(
+      year,
+      month,
+      day + ((days.indexOf(dayOfWeek) - weekday + 7) % 7 || 7),
+    );
   }
+  if (!dayOfMonth) throw new Error("Elegí un día del mes");
+  const candidate = monthDate(year, month, dayOfMonth);
+  return candidate > from ? candidate : monthDate(year, month + 1, dayOfMonth);
 }
-const DAY_INDEX_MAP: Record<DayOfWeek, number> = {
-  [DayOfWeek.MONDAY]: 0,
-  [DayOfWeek.TUESDAY]: 1,
-  [DayOfWeek.WEDNESDAY]: 2,
-  [DayOfWeek.THURSDAY]: 3,
-  [DayOfWeek.FRIDAY]: 4,
-  [DayOfWeek.SATURDAY]: 5,
-  [DayOfWeek.SUNDAY]: 6,
-};
+export function scheduleFromDate(date: string, frequency: Frequency) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Fecha inválida");
+  const nextRunAt = fromZonedTime(date + "T12:00:00", APP_TIMEZONE);
+  if (
+    !Number.isFinite(nextRunAt.getTime()) ||
+    formatInTimeZone(nextRunAt, APP_TIMEZONE, "yyyy-MM-dd") !== date
+  )
+    throw new Error("Fecha inválida");
+  const [year, month, day] = date.split("-").map(Number);
+  return {
+    nextRunAt,
+    dayOfMonth: frequency === "MONTHLY" ? day : null,
+    dayOfWeek:
+      frequency === "WEEKLY"
+        ? days[new Date(Date.UTC(year, month - 1, day)).getUTCDay()]
+        : null,
+  };
+}

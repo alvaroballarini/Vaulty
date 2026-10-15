@@ -35,12 +35,14 @@ interface Props {
   isLoadingData?: boolean;
   onEdit?: (transaction: transactionType) => void;
   hidden?: boolean;
+  fullHistory?: boolean;
 }
 export function RecentTransactions({
   data = [],
   isLoadingData,
   onEdit,
   hidden = false,
+  fullHistory = false,
 }: Props) {
   const cache = useQueryClient();
   const [search, setSearch] = useState("");
@@ -77,23 +79,27 @@ export function RecentTransactions({
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
           <h2 id="movements-title" className="text-base font-semibold">
-            Últimos movimientos
+            {fullHistory ? "Resultados" : "Últimos movimientos"}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Tus {data.length} movimientos más recientes
+            {fullHistory
+              ? `${data.length} movimientos en esta página`
+              : `Tus ${data.length} movimientos más recientes`}
           </p>
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
-          <input
-            aria-label="Buscar entre los últimos movimientos"
-            type="search"
-            placeholder="Buscar en recientes"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="vaulty-input pl-9 text-xs sm:w-56"
-          />
-        </div>
+        {!fullHistory && (
+          <div className="relative">
+            <Search className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
+            <input
+              aria-label="Buscar entre los últimos movimientos"
+              type="search"
+              placeholder="Buscar en recientes"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="vaulty-input pl-9 text-xs sm:w-56"
+            />
+          </div>
+        )}
       </div>
       <div className="mt-4 hidden grid-cols-[2fr_1fr_1fr_1fr_44px] gap-4 border-b border-border pb-2 text-xs text-muted-foreground md:grid">
         <span>Descripción / cuenta</span>
@@ -126,7 +132,7 @@ export function RecentTransactions({
             return (
               <li
                 key={item.id}
-                className="grid grid-cols-[minmax(0,1fr)_auto_36px] items-center gap-2 border-b border-border/65 py-3 last:border-0 md:grid-cols-[2fr_1fr_1fr_1fr_44px] md:gap-4"
+                className="grid grid-cols-[minmax(0,1fr)_auto_44px] items-center gap-2 border-b border-border/65 py-3 last:border-0 md:grid-cols-[2fr_1fr_1fr_1fr_44px] md:gap-4"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <span
@@ -145,12 +151,12 @@ export function RecentTransactions({
                         item.category?.name ||
                         "Sin descripción"}
                     </p>
-                    <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       <span className="hidden md:inline">
                         {item.account?.name ?? "Cuenta"}
                       </span>
                       <span className="md:hidden">
-                        {item.category?.name ?? "Sin categoría"} · {date}
+                        {item.account?.name ?? "Cuenta"} · {date}
                       </span>
                     </p>
                   </div>
@@ -214,7 +220,9 @@ export function RecentTransactions({
           <li className="py-10 text-center text-sm text-muted-foreground">
             {search
               ? "No hay coincidencias entre tus movimientos recientes."
-              : "Todavía no hay movimientos. Empezá con el registro rápido."}
+              : fullHistory
+                ? "No hay movimientos para estos filtros. Probá ampliar la búsqueda o registrá uno nuevo."
+                : "Todavía no hay movimientos. Empezá con el registro rápido."}
           </li>
         )}
       </ul>

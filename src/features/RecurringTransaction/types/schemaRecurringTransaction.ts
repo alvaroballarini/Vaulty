@@ -18,10 +18,7 @@ export const createRecurringTransactionSchema = z.object({
 
   frequency: z.nativeEnum(Frequency),
 
-  dayOfWeek: z
-    .nativeEnum(DayOfWeek)
-    .nullable()
-    .optional(),
+  dayOfWeek: z.nativeEnum(DayOfWeek).nullable().optional(),
 
   dayOfMonth: z.coerce
     .number()

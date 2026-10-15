@@ -14,3 +14,14 @@ export async function createAccount(input: z.infer<typeof schema>) {
     data: { ...data, userId: auth.session.userId },
   });
 }
+export async function updateAccount(id: string, input: z.infer<typeof schema>) {
+  const auth = await getCurrentUser();
+  if (!auth.authenticated) throw new Error("Sesión vencida");
+  z.string().cuid().parse(id);
+  const data = schema.parse(input);
+  const result = await prisma.account.updateMany({
+    where: { id, userId: auth.session.userId },
+    data,
+  });
+  if (result.count !== 1) throw new Error("Cuenta no encontrada");
+}

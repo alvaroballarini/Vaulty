@@ -1,14 +1,23 @@
 "use client";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import getCategories from "@/features/categories/hooks/getCategories";
 import { Button } from "@/components/ui/button";
+import { useFormGuard } from "@/components/ui/form-dialog";
 import { getLocalMonthBoundaries } from "@/lib/date-utils";
-import { parseMoneyInput } from "@/lib/money";
+import { parseMoneyInput, formatMoneyInput } from "@/lib/money";
 import createBudgetService from "../service/createBudget";
-export default function BudgetForm({ close }: { close?: () => void }) {
+export default function BudgetForm({
+  close,
+  initialData,
+}: {
+  close?: () => void;
+  initialData?: { categoryId: string; amount: number };
+}) {
   const id = useId();
+  const amountRef = useRef<HTMLInputElement>(null);
+  const categoryRef = useRef<HTMLSelectElement>(null);
   const cache = useQueryClient();
   const {
     data = [],
@@ -16,16 +25,29 @@ export default function BudgetForm({ close }: { close?: () => void }) {
     isError,
     refetch,
   } = useQuery({ queryKey: ["category"], queryFn: getCategories });
-  const [categoryId, setCategoryId] = useState("");
-  const [limit, setLimit] = useState("");
+  const [categoryId, setCategoryId] = useState(initialData?.categoryId ?? "");
+  const [limit, setLimit] = useState(
+    initialData ? formatMoneyInput(initialData.amount) : "",
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const cancel = useFormGuard(
+    categoryId !== (initialData?.categoryId ?? "") ||
+      limit !== (initialData ? formatMoneyInput(initialData.amount) : ""),
+    busy,
+  );
   async function save(event: React.FormEvent) {
     event.preventDefault();
     if (busy) return;
     const amount = parseMoneyInput(limit);
     if (!amount || !categoryId) {
-      setError("Elegí una categoría y un monto válido.");
+      setError(
+        !categoryId
+          ? "Elegí una categoría de gasto."
+          : "Ingresá un límite válido mayor que cero.",
+      );
+      if (!categoryId) categoryRef.current?.focus();
+      else amountRef.current?.focus();
       return;
     }
     const { currentMonth: month, currentYear: year } =
@@ -52,8 +74,12 @@ export default function BudgetForm({ close }: { close?: () => void }) {
         Categoría de gasto
       </label>
       <select
+        ref={categoryRef}
         id={id + "category"}
         value={categoryId}
+        disabled={busy || Boolean(initialData)}
+        aria-invalid={Boolean(error) && !categoryId}
+        aria-describedby={error ? id + "error" : undefined}
         onChange={(event) => setCategoryId(event.target.value)}
         required
         className="vaulty-input text-sm"
@@ -82,6 +108,10 @@ export default function BudgetForm({ close }: { close?: () => void }) {
         Límite mensual · ARS
       </label>
       <input
+        ref={amountRef}
+        disabled={busy}
+        aria-invalid={Boolean(error) && !parseMoneyInput(limit)}
+        aria-describedby={error ? id + "error" : undefined}
         id={id + "limit"}
         inputMode="decimal"
         value={limit}
@@ -95,7 +125,7 @@ export default function BudgetForm({ close }: { close?: () => void }) {
         límite.
       </p>
       {error && (
-        <p role="alert" className="text-xs text-destructive">
+        <p id={id + "error"} role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}
@@ -104,7 +134,12 @@ export default function BudgetForm({ close }: { close?: () => void }) {
           {busy ? "Guardando…" : "Guardar presupuesto"}
         </Button>
         {close && (
-          <Button type="button" variant="ghost" disabled={busy} onClick={close}>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={busy}
+            onClick={cancel ?? close}
+          >
             Cancelar
           </Button>
         )}

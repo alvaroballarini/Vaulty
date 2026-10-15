@@ -20,4 +20,6 @@ jobs:
         run: |
           curl --fail-with-body -X GET \
             "https://vaultytest.vercel.app/api/cron/recurring-transactions" \
-            -H "Authorization: Bearer asdasddas"
+            -H "Authorization: Bearer $CRON_SECRET"
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

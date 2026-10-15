@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   House,
   List,
@@ -7,93 +9,100 @@ import {
   ChartPie,
   CalendarDays,
   Ellipsis,
-  Sprout,
+  Plus,
 } from "lucide-react";
 import { VaultyLogo } from "./VaultyLogo";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
-
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "./ui/dialog";
 const links = [
-  { id: "inicio", label: "Inicio", Icon: House },
-  { id: "movimientos", label: "Movimientos", Icon: List },
-  { id: "cuentas", label: "Cuentas", Icon: WalletCards },
-  { id: "presupuestos", label: "Presupuestos", Icon: ChartPie },
-  { id: "planificacion", label: "Planificación", Icon: CalendarDays },
+  { href: "/", label: "Inicio", Icon: House },
+  { href: "/movimientos", label: "Movimientos", Icon: List },
+  { href: "/cuentas", label: "Cuentas", Icon: WalletCards },
+  { href: "/presupuestos", label: "Presupuestos", Icon: ChartPie },
+  { href: "/planificacion", label: "Planificación", Icon: CalendarDays },
 ];
-export function Sidebar({ onNavigate }: { onNavigate: (id: string) => void }) {
-  const [active, setActive] = useState("inicio");
+export function Sidebar() {
+  const pathname = usePathname();
   const [more, setMore] = useState(false);
-  function navigate(id: string) {
-    setActive(id);
-    setMore(false);
-    onNavigate(id);
-  }
   return (
     <>
-      <aside className="sticky top-0 hidden h-dvh w-[212px] shrink-0 flex-col border-r border-border/60 bg-sidebar/85 px-4 py-8 lg:flex xl:w-[230px]">
-        <a
-          href="#inicio"
-          onClick={() => navigate("inicio")}
-          aria-label="Vaulty, ir al inicio"
-          className="px-3"
-        >
+      <aside className="sticky top-0 hidden h-dvh w-[212px] shrink-0 flex-col border-r border-border/60 bg-sidebar px-4 py-8 lg:flex xl:w-[230px]">
+        <Link href="/" aria-label="Vaulty, ir al inicio" className="px-3">
           <VaultyLogo />
-        </a>
+        </Link>
+        <Link
+          href="/registrar"
+          aria-current={pathname === "/registrar" ? "page" : undefined}
+          className="mt-10 flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          <Plus className="size-4" />
+          Registrar
+        </Link>
         <nav
           aria-label="Navegación principal"
-          className="mt-10 flex flex-col gap-2"
+          className="mt-5 flex flex-col gap-1"
         >
-          {links.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              onClick={() => navigate(id)}
-              aria-current={active === id ? "location" : undefined}
+          {links.map(({ href, label, Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={pathname === href ? "page" : undefined}
               className={cn(
-                "flex min-h-12 items-center gap-3 rounded-lg px-3 text-left text-sm transition-colors",
-                active === id
+                "flex min-h-12 items-center gap-3 rounded-lg px-3 text-sm transition-colors",
+                pathname === href
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground",
               )}
             >
               <Icon className="size-5" />
               {label}
-            </button>
+            </Link>
           ))}
         </nav>
-        <div className="mt-auto rounded-xl border border-primary/10 bg-primary/5 p-4">
-          <Sprout className="mb-3 size-5 text-primary" />
-          <p className="text-sm font-medium">Un hábito, más claridad.</p>
-          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-            Cada movimiento te ayuda a entender mejor tu dinero.
+        <div className="mt-auto border-t border-border pt-5 px-3">
+          <p className="text-xs text-muted-foreground">
+            Tu espacio financiero personal
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Pesos argentinos · ARS
           </p>
         </div>
-        <p className="mt-4 px-3 text-[11px] text-muted-foreground">
-          Vaulty · Finanzas personales
-        </p>
       </aside>
       <nav
         aria-label="Navegación móvil"
-        className="vaulty-mobile-nav fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border bg-sidebar/95 px-2 pt-2 backdrop-blur-xl lg:hidden"
+        className="vaulty-mobile-nav fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border bg-sidebar px-2 pt-2 lg:hidden"
       >
-        {links.slice(0, 3).map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            onClick={() => navigate(id)}
-            aria-current={active === id ? "location" : undefined}
+        {[
+          links[0],
+          links[1],
+          { href: "/registrar", label: "Registrar", Icon: Plus },
+        ].map(({ href, label, Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            aria-current={pathname === href ? "page" : undefined}
             className={cn(
-              "flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg text-[10px]",
-              active === id ? "text-primary" : "text-muted-foreground",
+              "flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg text-xs",
+              pathname === href ? "text-primary" : "text-muted-foreground",
+              href === "/registrar" && "bg-primary/10 text-primary",
             )}
           >
             <Icon className="size-5" />
             {label}
-          </button>
+          </Link>
         ))}
         <button
           onClick={() => setMore(true)}
+          aria-expanded={more}
           className={cn(
-            "flex min-h-12 flex-col items-center justify-center gap-1 text-[10px]",
-            ["planificacion", "presupuestos"].includes(active)
+            "flex min-h-12 flex-col items-center justify-center gap-1 text-xs",
+            links.slice(2).some((link) => link.href === pathname)
               ? "text-primary"
               : "text-muted-foreground",
           )}
@@ -105,17 +114,22 @@ export function Sidebar({ onNavigate }: { onNavigate: (id: string) => void }) {
       <Dialog open={more} onOpenChange={setMore}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Más en Vaulty</DialogTitle>
+            <DialogTitle>Organizá tu dinero</DialogTitle>
+            <DialogDescription>
+              Cuentas, límites y movimientos recurrentes.
+            </DialogDescription>
           </DialogHeader>
-          {links.slice(3).map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              onClick={() => navigate(id)}
-              className="flex min-h-12 items-center gap-3 rounded-lg px-3 text-left hover:bg-secondary"
+          {links.slice(2).map(({ href, label, Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => setMore(false)}
+              aria-current={pathname === href ? "page" : undefined}
+              className="flex min-h-12 items-center gap-3 rounded-lg px-3 hover:bg-secondary"
             >
               <Icon className="size-5 text-primary" />
               {label}
-            </button>
+            </Link>
           ))}
         </DialogContent>
       </Dialog>

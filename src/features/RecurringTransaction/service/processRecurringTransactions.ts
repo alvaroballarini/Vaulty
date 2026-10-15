@@ -13,14 +13,14 @@ export async function processRecurringTransactions() {
       },
     },
     take: 10,
+    orderBy: [{ nextRunAt: "asc" }, { id: "asc" }],
   });
 
   let processed = 0;
   let failed = 0;
   for (const recurring of recurringTransactions) {
     try {
-      await processRecurringTransaction(recurring);
-      processed++;
+      if (await processRecurringTransaction(recurring)) processed++;
     } catch (error) {
       failed++;
 
@@ -36,7 +36,21 @@ export async function processRecurringTransactions() {
 }
 
 async function processRecurringTransaction(recurring: RecurringTransaction) {
-  await prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => {
+    // Claim this exact occurrence before writing; concurrent runs and edits cannot duplicate it.
+    const claimed = await tx.recurringTransaction.updateMany({
+      where: {
+        id: recurring.id,
+        isActive: true,
+        nextRunAt: recurring.nextRunAt,
+        updatedAt: recurring.updatedAt,
+      },
+      data: {
+        lastRunAt: recurring.nextRunAt,
+        nextRunAt: calculateNextRun(recurring),
+      },
+    });
+    if (claimed.count !== 1) return false;
     await tx.transaction.create({
       data: {
         userId: recurring.userId,
@@ -44,7 +58,7 @@ async function processRecurringTransaction(recurring: RecurringTransaction) {
         categoryId: recurring.categoryId,
         description: recurring.description,
         amount: recurring.expectedAmount,
-        date: new Date(),
+        date: recurring.nextRunAt!,
         type: recurring.type,
         recurringTransactionId: recurring.id,
       },
@@ -52,20 +66,12 @@ async function processRecurringTransaction(recurring: RecurringTransaction) {
     await tx.notification.create({
       data: {
         userId: recurring.userId,
-        message: `Se creo una transacción programada ${recurring.description}`,
+        message: `Se registró el movimiento programado ${recurring.description}`,
         title: "Transacción programada",
         type: "RECURRING_DUE",
       },
     });
 
-    await tx.recurringTransaction.update({
-      where: {
-        id: recurring.id,
-      },
-      data: {
-        lastRunAt: recurring.nextRunAt,
-        nextRunAt: calculateNextRun(recurring),
-      },
-    });
+    return true;
   });
 }

@@ -1,4 +1,5 @@
 import { CalendarDays, ChevronRight, Plus, ChartPie } from "lucide-react";
+import Link from "next/link";
 import { DashboardType } from "../type";
 import { money } from "./Overview";
 import { APP_TIMEZONE } from "@/lib/date-utils";
@@ -34,12 +35,12 @@ export function PlanningPanel({
           <button
             onClick={onSchedule}
             aria-label="Programar un movimiento"
-            className="flex size-9 items-center justify-center rounded-lg text-primary hover:bg-primary/10"
+            className="flex size-11 items-center justify-center rounded-lg text-primary hover:bg-primary/10"
           >
             <Plus className="size-4" />
           </button>
         </div>
-        <p className="mb-2 text-[11px] text-muted-foreground">
+        <p className="mb-2 text-xs text-muted-foreground">
           Próximos 14 días · Importes estimados
         </p>
         {outlook.needsReview && (
@@ -63,7 +64,7 @@ export function PlanningPanel({
                 </p>
                 <p
                   className={cn(
-                    "mt-1 text-[10px]",
+                    "mt-1 text-xs",
                     item.overdue ? "text-amber-300" : "text-muted-foreground",
                   )}
                 >
@@ -119,12 +120,23 @@ export function PlanningPanel({
                       timeZone: APP_TIMEZONE,
                     }).format(new Date(item.date))}
                   </span>
-                  <span>{money(item.amount, hidden)}</span>
+                  <span>
+                    {hidden
+                      ? "••••••"
+                      : `${item.type === "INCOME" ? "+" : "−"}${money(item.amount)}`}
+                  </span>
                 </li>
               ))}
             </ul>
           </details>
         )}
+        <Link
+          href="/planificacion"
+          className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm text-primary"
+        >
+          Gestionar planificación
+          <ChevronRight className="size-4" />
+        </Link>
       </section>
       <button
         onClick={onBudgets}
@@ -164,7 +176,7 @@ export function PlanningPanel({
               />
             </span>
           ) : (
-            <span className="mt-1 block text-[11px] text-muted-foreground">
+            <span className="mt-1 block text-xs text-muted-foreground">
               Creá tu primer presupuesto mensual
             </span>
           )}

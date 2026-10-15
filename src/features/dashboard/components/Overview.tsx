@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   ArrowDown,
   ArrowUp,
@@ -62,7 +63,7 @@ export function Overview({
         <h2 id="balance-title" className="text-sm font-medium sm:text-base">
           Saldo en tus cuentas
         </h2>
-        <span className="text-[10px] tracking-wider text-muted-foreground">
+        <span className="text-xs tracking-wider text-muted-foreground">
           ARS
         </span>
       </div>
@@ -102,6 +103,14 @@ export function Overview({
           </span>
         )}
       </button>
+      {data.accounts.length > 3 && (
+        <button
+          onClick={onAccounts}
+          className="mt-2 min-h-11 text-xs text-primary"
+        >
+          Ver las {data.accounts.length} cuentas
+        </button>
+      )}
       <div className="mt-5 grid grid-cols-3 gap-2 border-t border-border pt-5">
         {metrics.map(({ label, value, Icon, color }) => (
           <div
@@ -117,7 +126,7 @@ export function Overview({
               <Icon className="size-4" />
             </span>
             <div className="min-w-0">
-              <p className="text-[10px] text-muted-foreground sm:text-xs">
+              <p className="text-xs text-muted-foreground sm:text-xs">
                 {label}
               </p>
               <p
@@ -133,7 +142,7 @@ export function Overview({
           </div>
         ))}
       </div>
-      <p className="mt-4 text-[10px] text-muted-foreground">
+      <p className="mt-4 text-xs text-muted-foreground">
         Saldos según movimientos registrados · Ingresos y gastos de este mes
       </p>
     </section>
@@ -187,6 +196,14 @@ export function PaymentEstimate({
             : "Saldo registrado menos gastos programados de los próximos 14 días. No incluye ingresos futuros, gastos no programados ni pagos sin registrar."}
         </p>
       </details>
+      {outlook.needsReview && (
+        <Link
+          href="/planificacion"
+          className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-primary underline underline-offset-4"
+        >
+          Revisar planificación
+        </Link>
+      )}
     </section>
   );
 }

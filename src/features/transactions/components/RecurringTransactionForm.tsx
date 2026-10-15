@@ -1,296 +1,289 @@
-import createRecurringTransactionService from "@/features/RecurringTransaction/service/createRecurringTransactionService";
-import CategoryFormPopover from "@/features/categories/components/CategoryFormPopover";
-import { parseMoneyInput } from "@/lib/money";
-import getCategories from "@/features/categories/hooks/getCategories";
-import { ArrowDownRight, ArrowUpRight, Check } from "lucide-react";
+"use client";
+import { useState, useRef, useId } from "react";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { DayOfWeek, Frequency } from "@/generated/prisma/enums";
-import getAccounts from "@/features/account/hook/getAccount";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect, useRef, useState } from "react";
-import DayOfMonthSelect from "./DayOfMonthSelect";
-import FrequencySelect from "./FrequencySelect";
-import DayOfWeekSelect from "./DayOfWeekSelect";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { formatInTimeZone } from "date-fns-tz";
 import { toast } from "sonner";
-
-interface Props {
+import { Button } from "@/components/ui/button";
+import { useFormGuard } from "@/components/ui/form-dialog";
+import getCategories from "@/features/categories/hooks/getCategories";
+import getAccounts from "@/features/account/hook/getAccount";
+import { saveSchedule } from "@/features/RecurringTransaction/service/manageRecurring";
+import { ScheduledMovement } from "@/features/RecurringTransaction/types/management";
+import { Frequency } from "@/generated/prisma/enums";
+import { APP_TIMEZONE } from "@/lib/date-utils";
+import { parseMoneyInput, formatMoneyInput } from "@/lib/money";
+export function RecurringTransactionForm({
+  isOpen,
+  closeForm,
+  initialData,
+}: {
   isOpen: boolean;
   closeForm: () => void;
-}
-
-type TxType = "EXPENSE" | "INCOME";
-
-export function RecurringTransactionForm({ isOpen, closeForm }: Props) {
-  const queryClient = useQueryClient();
-
-  const { data: categories, isLoading: isLoadingCategories } = useQuery({
-    queryKey: ["category"],
-    queryFn: getCategories,
-    staleTime: Infinity,
-  });
-  const { data: accounts, isLoading: isLoadingAccount } = useQuery({
+  initialData?: ScheduledMovement;
+}) {
+  const cache = useQueryClient();
+  const id = useId();
+  const guard = useRef(false);
+  const amountRef = useRef<HTMLInputElement>(null);
+  const accounts = useQuery({
     queryKey: ["account"],
     queryFn: getAccounts,
-    staleTime: Infinity,
+    enabled: isOpen,
   });
-  const [isLoadingSubmit, setIsLoadingSubmit] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [category, setCategory] = useState<string>("");
-  const [type, setType] = useState<TxType>("EXPENSE");
-  const [account, setAccount] = useState("");
-  const [amount, setAmount] = useState("");
-  const [frequency, setFrequency] = useState<Frequency>("MONTHLY");
-  const [dayOfMonth, setDayOfMonth] = useState<number | null>(1);
-  const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek | null>("MONDAY");
-  const [name, setName] = useState("");
-
-  const amountRef = useRef<HTMLInputElement>(null);
-
-  // Cierra con la tecla Escape
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeForm();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, closeForm]);
-
+  const categories = useQuery({
+    queryKey: ["category"],
+    queryFn: getCategories,
+    enabled: isOpen,
+  });
+  const [type, setType] = useState<"INCOME" | "EXPENSE">(
+    initialData?.type === "INCOME" ? "INCOME" : "EXPENSE",
+  );
+  const [amount, setAmount] = useState(
+    initialData ? formatMoneyInput(initialData.expectedAmount) : "",
+  );
+  const [accountId, setAccount] = useState(initialData?.accountId ?? "");
+  const [categoryId, setCategory] = useState(initialData?.categoryId ?? "");
+  const [description, setDescription] = useState(
+    initialData?.description ?? "",
+  );
+  const [frequency, setFrequency] = useState<Frequency>(
+    initialData?.frequency ?? "MONTHLY",
+  );
+  const [today] = useState(() => new Date());
+  const tomorrow = formatInTimeZone(
+    new Date(today.getTime() + 86400000),
+    APP_TIMEZONE,
+    "yyyy-MM-dd",
+  );
+  const [nextDate, setDate] = useState(
+    initialData?.nextRunAt
+      ? formatInTimeZone(
+          new Date(initialData.nextRunAt),
+          APP_TIMEZONE,
+          "yyyy-MM-dd",
+        )
+      : tomorrow,
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const snapshot = JSON.stringify({
+    type,
+    amount,
+    accountId,
+    categoryId,
+    description,
+    frequency,
+    nextDate,
+  });
+  const [original] = useState(snapshot);
+  const cancel = useFormGuard(snapshot !== original, busy);
   if (!isOpen) return null;
-  function selectType(next: TxType) {
-    setType(next);
-    // Ajusta la categoría por defecto al cambiar de tipo
-    setCategory("");
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (isLoadingSubmit) return;
+  async function save(event: React.FormEvent) {
+    event.preventDefault();
+    if (guard.current) return;
     const value = parseMoneyInput(amount);
-    if (!value || value <= 0) {
-      setError("Introduce un monto válido mayor que 0.");
+    if (!value) {
+      setError("Ingresá un monto válido mayor que cero.");
       amountRef.current?.focus();
       return;
     }
-    setIsLoadingSubmit(true);
+    guard.current = true;
+    setBusy(true);
+    setError("");
     try {
-      await createRecurringTransactionService({
+      await saveSchedule({
+        id: initialData?.id,
+        description,
         expectedAmount: value,
-        frequency: frequency,
-        categoryId: category,
-        accountId: account,
-        dayOfMonth: frequency === "MONTHLY" ? dayOfMonth : null,
-        dayOfWeek: frequency === "WEEKLY" ? dayOfWeek : null,
-        description:
-          name.trim() ||
-          categories?.find((item) => item.id === category)?.name ||
-          "Movimiento programado",
-        isActive: true,
-        type: type,
+        type,
+        frequency,
+        accountId,
+        categoryId,
+        isActive: initialData?.isActive ?? true,
+        nextDate,
       });
-      queryClient.invalidateQueries({
-        queryKey: ["dashboard"],
-      });
-
-      toast.success("Movimiento programado");
+      await Promise.all([
+        cache.invalidateQueries({ queryKey: ["schedules"] }),
+        cache.invalidateQueries({ queryKey: ["dashboard"] }),
+      ]);
+      toast.success(
+        initialData ? "Programación actualizada" : "Movimiento programado",
+      );
       closeForm();
     } catch {
-      setError("No se pudo guardar. Revisá los datos e intentá nuevamente.");
+      setError(
+        "No se pudo guardar. Elegí una fecha futura y revisá la cuenta, categoría y monto.",
+      );
+    } finally {
+      guard.current = false;
+      setBusy(false);
     }
-
-    setIsLoadingSubmit(false);
   }
-  const isValid: boolean =
-    amount.length > 0 &&
-    account.length > 0 &&
-    category.length > 0 &&
-    frequency !== null &&
-    !isLoadingSubmit;
+  const unavailable = accounts.isError || categories.isError;
   return (
-    <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
-      {/* Tipo de movimiento */}
-      <div className="grid grid-cols-2 gap-2 rounded-xl bg-secondary p-1">
-        {(
-          [
-            { key: "EXPENSE", label: "Gasto", Icon: ArrowDownRight },
-            { key: "INCOME", label: "Ingreso", Icon: ArrowUpRight },
-          ] as const
-        ).map(({ key, label, Icon }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => selectType(key)}
-            className={cn(
-              "flex h-10 items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-colors",
-              type === key
-                ? key === "EXPENSE"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-foreground text-background"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Icon className="size-4" />
-            {label}
-          </button>
-        ))}
-      </div>
-      {/* Monto */}
-      <div>
-        <label
-          htmlFor="tx-amount"
-          className="mb-1.5 block text-xs font-medium text-muted-foreground"
-        >
-          Monto
-        </label>
-        <div className="flex items-center rounded-xl border border-border bg-secondary px-4 focus-within:border-primary">
-          <span className="text-xl font-semibold text-muted-foreground">$</span>
-          <input
-            id="tx-amount"
-            ref={amountRef}
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => {
-              setAmount(e.target.value.replace(/[^0-9.,]/g, ""));
-              setError(null);
-            }}
-            placeholder="0,00"
-            className="h-14 w-full bg-transparent px-2 font-mono text-2xl font-semibold tabular-nums outline-none placeholder:text-muted-foreground/50"
-          />
+    <form onSubmit={save} className="mt-2 space-y-4">
+      <fieldset disabled={busy} className="space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          {(["EXPENSE", "INCOME"] as const).map((option) => (
+            <Button
+              key={option}
+              type="button"
+              variant={type === option ? "default" : "outline"}
+              aria-pressed={type === option}
+              onClick={() => {
+                setType(option);
+                setCategory("");
+              }}
+            >
+              {option === "EXPENSE" ? "Gasto" : "Ingreso"}
+            </Button>
+          ))}
         </div>
-        {error && (
-          <p role="alert" className="mt-1.5 text-xs text-destructive">
-            {error}
+        <label className="block text-sm" htmlFor={id + "name"}>
+          Concepto
+          <input
+            id={id + "name"}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            required
+            maxLength={255}
+            placeholder="Ej. Alquiler"
+            className="vaulty-input mt-2"
+          />
+        </label>
+        <label className="block text-sm">
+          Monto estimado · ARS
+          <input
+            inputMode="decimal"
+            ref={amountRef}
+            aria-invalid={Boolean(error) && !parseMoneyInput(amount)}
+            aria-describedby={error ? id + "error" : undefined}
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            required
+            placeholder="Ej. 250.000"
+            className="vaulty-input mt-2"
+          />
+        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="text-sm">
+            Cuenta
+            <select
+              required
+              className="vaulty-input mt-2"
+              value={accountId}
+              onChange={(event) => setAccount(event.target.value)}
+            >
+              <option value="">
+                {accounts.isLoading ? "Cargando…" : "Elegí una cuenta"}
+              </option>
+              {accounts.data?.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            Categoría
+            <select
+              required
+              className="vaulty-input mt-2"
+              value={categoryId}
+              onChange={(event) => setCategory(event.target.value)}
+            >
+              <option value="">
+                {categories.isLoading ? "Cargando…" : "Elegí una categoría"}
+              </option>
+              {categories.data
+                ?.filter((item) => item.type === type)
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            Repetir
+            <select
+              className="vaulty-input mt-2"
+              value={frequency}
+              onChange={(event) =>
+                setFrequency(event.target.value as Frequency)
+              }
+            >
+              <option value="MONTHLY">Cada mes</option>
+              <option value="WEEKLY">Cada semana</option>
+              <option value="DAILY">Cada día</option>
+            </select>
+          </label>
+          <label className="text-sm">
+            Próxima fecha
+            <input
+              type="date"
+              required
+              min={formatInTimeZone(today, APP_TIMEZONE, "yyyy-MM-dd")}
+              className="vaulty-input mt-2"
+              value={nextDate}
+              onChange={(event) => setDate(event.target.value)}
+            />
+          </label>
+        </div>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          La próxima fecha define el día de la repetición. En meses más cortos
+          se usa el último día. Los movimientos se registran automáticamente a
+          partir del mediodía, hora argentina. Pueden demorar en aparecer.
+        </p>
+        {initialData && (
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Cambiar la fecha reemplaza el próximo vencimiento pendiente. Los
+            movimientos ya registrados se conservan.
           </p>
         )}
-      </div>
-      {/* Cuenta */}
-      <div>
-        <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
-          Cuenta
-        </span>
-        <div className="grid grid-cols-2 gap-2">
-          {isLoadingAccount ? (
-            <>
-              <Skeleton className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors h-15 w-50" />
-              <Skeleton className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors h-15 w-50" />
-            </>
-          ) : (
-            accounts?.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                onClick={() => setAccount(a.id)}
-                className={cn(
-                  "flex flex-col items-start rounded-xl border px-3 py-2.5 text-left transition-colors",
-                  account === a.id
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-secondary hover:border-muted-foreground/40",
-                )}
-              >
-                <span className="text-sm font-medium">{a.name}</span>
-                <span className="text-xs text-muted-foreground">{a.name}</span>
-              </button>
-            ))
-          )}
+      </fieldset>
+      {unavailable && (
+        <div role="alert" className="vaulty-error">
+          No pudimos cargar tus opciones.
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              void accounts.refetch();
+              void categories.refetch();
+            }}
+          >
+            Reintentar
+          </Button>
         </div>
-      </div>
-      {/* Categoría */}
-      <div>
-        <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
-          Categoría
-        </span>
-        <div className="flex flex-wrap gap-2">
-          {isLoadingCategories ? (
-            <>
-              <Skeleton className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors h-8 w-24" />
-              <Skeleton className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors h-8 w-24" />
-              <Skeleton className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors h-8 w-24" />
-              <Skeleton className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors h-8 w-24" />
-            </>
-          ) : (
-            categories
-              ?.filter((c) => c.type === type)
-              .map((c, key) => {
-                const active = category === c.id;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setCategory(c.id)}
-                    className={cn(
-                      "flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                      active
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "border-border bg-secondary text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {active && <Check className="size-3.5 text-primary" />}
-                    {c.name}
-                  </button>
-                );
-              })
-          )}
-          <CategoryFormPopover type={type} />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="min-w-0">
-          <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
-            Frecuencia
-          </span>
-
-          <FrequencySelect value={frequency} onchange={setFrequency} />
-        </div>
-        {frequency === "MONTHLY" && (
-          <div className="min-w-0">
-            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
-              Día del mes
-            </span>
-            <DayOfMonthSelect value={dayOfMonth} onChange={setDayOfMonth} />
-          </div>
-        )}
-        {frequency === "WEEKLY" && (
-          <div className="min-w-0">
-            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
-              Día del mes
-            </span>
-            <DayOfWeekSelect value={dayOfWeek} onchange={setDayOfWeek} />
-          </div>
-        )}
-      </div>
-
-      {/* Concepto (opcional) */}
-      <div>
-        <label
-          htmlFor="tx-name"
-          className="mb-1.5 block text-xs font-medium text-muted-foreground"
-        >
-          Concepto <span className="text-muted-foreground/60">(opcional)</span>
-        </label>
-        <input
-          id="tx-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Ej. Cena con amigos"
-          className="h-11 w-full rounded-xl border border-border bg-secondary px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-primary"
-        />
-      </div>
-      <div className="mt-1 flex gap-2">
-        <button
+      )}
+      {accounts.data?.length === 0 && (
+        <Link href="/cuentas" className="text-sm text-primary underline">
+          Creá una cuenta para programar movimientos
+        </Link>
+      )}
+      {error && (
+        <p id={id + "error"} role="alert" className="vaulty-error">
+          {error}
+        </p>
+      )}
+      <div className="flex flex-wrap justify-end gap-2 pt-2">
+        <Button
           type="button"
-          onClick={closeForm}
-          className="h-11 flex-1 rounded-xl border border-border bg-secondary text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70"
+          variant="outline"
+          disabled={busy}
+          onClick={cancel ?? closeForm}
         >
           Cancelar
-        </button>
+        </Button>
         <Button
           type="submit"
-          disabled={!isValid}
-          className="h-11 flex-[1.5] rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+          disabled={
+            busy || unavailable || accounts.isLoading || categories.isLoading
+          }
         >
-          {isLoadingSubmit ? "Guardando…" : "Guardar programación"}
+          {busy ? "Guardando…" : "Guardar programación"}
         </Button>
       </div>
     </form>

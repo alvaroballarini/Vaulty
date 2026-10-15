@@ -22,6 +22,7 @@ import { parseMoneyInput, formatMoneyInput } from "@/lib/money";
 import { APP_TIMEZONE } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useFormGuard } from "@/components/ui/form-dialog";
 
 export type TxType = "EXPENSE" | "INCOME";
 export interface TransactionType {
@@ -102,6 +103,20 @@ export function TransactionForm({
   const [showAll, setShowAll] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const snapshot = JSON.stringify({
+    type,
+    amount,
+    category,
+    account,
+    description,
+    dateMode,
+    date,
+  });
+  const [original] = useState(snapshot);
+  const cancel = useFormGuard(
+    Boolean(initialData) && snapshot !== original,
+    saving,
+  );
   const accountId = accounts.some((item) => item.id === account)
     ? account
     : (accounts[0]?.id ?? "");
@@ -453,7 +468,7 @@ export function TransactionForm({
         {!inline && (
           <button
             type="button"
-            onClick={closeForm}
+            onClick={cancel ?? closeForm}
             className="min-h-9 text-sm text-muted-foreground"
           >
             Cancelar

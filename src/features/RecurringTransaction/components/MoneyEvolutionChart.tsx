@@ -61,7 +61,7 @@ export function MoneyEvolutionChart({
             Evolución del saldo
           </h2>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Saldo registrado al cierre de cada mes
+            Saldo al cierre de cada mes · Mes actual hasta hoy
           </p>
         </div>
         <div className="flex gap-1 rounded-lg border border-border p-1">
