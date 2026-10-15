@@ -1,182 +1,146 @@
 "use client";
-
-import { registerService } from "../service/auth.service";
-import { User, Mail, Lock, Loader2 } from "lucide-react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AuthField } from "./AuthField";
-import { cn } from "@/lib/utils";
-import { useState } from "react";
-import { toast } from "sonner";
 import Link from "next/link";
-
-function passwordStrength(pw: string) {
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (/[A-Z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  return score;
-}
-
-const strengthLabels = ["Muy débil", "Débil", "Aceptable", "Buena", "Fuerte"];
+import { useQueryClient } from "@tanstack/react-query";
+import { User, Mail, Lock, ArrowRight, LoaderCircle } from "lucide-react";
+import { registerService } from "../service/auth.service";
+import { createUserSchema } from "@/features/user/types/schemaUser";
+import { AuthField } from "./AuthField";
+import { Button } from "@/components/ui/button";
 
 export function RegisterForm() {
   const router = useRouter();
+  const cache = useQueryClient();
+  const ref = useRef<HTMLFormElement>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [accept, setAccept] = useState(false);
-  const [errors, setErrors] = useState<{
-    name?: string;
-    email?: string;
-    password?: string;
-    accept?: string;
-  }>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const strength = passwordStrength(password);
-
-  function validate() {
-    const next: typeof errors = {};
-    if (!name.trim()) next.name = "Introduce tu nombre.";
-    if (!email) next.email = "Introduce tu correo electrónico.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      next.email = "Correo electrónico no válido.";
-    if (!password) next.password = "Introduce una contraseña.";
-    else if (password.length < 8) next.password = "Mínimo 8 caracteres.";
-    if (!accept) next.accept = "Debes aceptar los términos.";
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!validate()) return;
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (loading) return;
+    setError("");
+    const parsed = createUserSchema.safeParse({
+      name,
+      email,
+      passwordHash: password,
+    });
+    if (!parsed.success) {
+      setErrors(
+        Object.fromEntries(
+          parsed.error.issues.map((issue) => [
+            String(issue.path[0]),
+            issue.message,
+          ]),
+        ),
+      );
+      requestAnimationFrame(() =>
+        ref.current
+          ?.querySelector<HTMLInputElement>('[aria-invalid="true"]')
+          ?.focus(),
+      );
+      return;
+    }
+    setErrors({});
     setLoading(true);
     try {
-      await registerService({ email, name, passwordHash: password });
+      const result = await registerService(parsed.data);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      cache.clear();
       router.replace("/");
-
-      toast.success("Se logro iniciar sesión");
+      router.refresh();
     } catch {
-      toast.warning("No se logro iniciar sesión");
+      setError(
+        "No pudimos conectarnos. Tus datos siguen acá; comprobá tu conexión y reintentá.",
+      );
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
-
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
-      <AuthField
-        label="Nombre completo"
-        name="name"
-        placeholder="Ana Martínez"
-        icon={User}
-        autoComplete="name"
-        value={name}
-        onChange={setName}
-        error={errors.name}
-        required
-      />
-      <AuthField
-        label="Correo electrónico"
-        type="email"
-        name="email"
-        placeholder="tu@correo.com"
-        icon={Mail}
-        autoComplete="email"
-        value={email}
-        onChange={setEmail}
-        error={errors.email}
-        required
-      />
-      <div className="flex flex-col gap-2">
+    <form ref={ref} onSubmit={submit} className="space-y-5" noValidate>
+      <fieldset disabled={loading} className="space-y-5">
+        <legend className="sr-only">Crear tu cuenta</legend>
         <AuthField
-          label="Contraseña"
-          type="password"
-          name="password"
-          placeholder="Mínimo 8 caracteres"
-          icon={Lock}
-          autoComplete="new-password"
-          value={password}
-          onChange={setPassword}
-          error={errors.password}
+          label="Tu nombre"
+          name="name"
+          icon={User}
+          autoComplete="name"
+          placeholder="Cómo querés que te llamemos"
+          value={name}
+          onChange={setName}
+          error={errors.name}
           required
         />
-        {password && (
-          <div className="flex items-center gap-3">
-            <div className="flex flex-1 gap-1.5">
-              {[0, 1, 2, 3].map((i) => (
-                <span
-                  key={i}
-                  className={cn(
-                    "h-1.5 flex-1 rounded-full transition-colors",
-                    i < strength
-                      ? strength <= 1
-                        ? "bg-destructive"
-                        : strength === 2
-                          ? "bg-chart-4"
-                          : "bg-chart-3"
-                      : "bg-border",
-                  )}
-                />
-              ))}
-            </div>
-            <span className="w-20 text-right text-xs text-muted-foreground">
-              {strengthLabels[strength]}
-            </span>
-          </div>
+        <AuthField
+          label="Correo electrónico"
+          name="email"
+          type="email"
+          icon={Mail}
+          autoComplete="email"
+          placeholder="tu@correo.com"
+          value={email}
+          onChange={setEmail}
+          error={errors.email}
+          required
+        />
+        <AuthField
+          label="Contraseña"
+          name="password"
+          type="password"
+          icon={Lock}
+          autoComplete="new-password"
+          placeholder="Al menos 8 caracteres"
+          value={password}
+          onChange={setPassword}
+          error={errors.passwordHash}
+          required
+        />
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Usá entre 8 y 128 caracteres. La recuperación de contraseña estará
+          disponible más adelante.
+        </p>
+        {error && (
+          <p role="alert" className="vaulty-error">
+            {error}
+          </p>
         )}
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label className="flex cursor-pointer items-start gap-2.5 text-sm text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={accept}
-            onChange={(e) => setAccept(e.target.checked)}
-            className="mt-0.5 size-4 rounded border-border bg-secondary accent-primary"
-          />
-          <span className="leading-relaxed">
-            Acepto los{" "}
-            <Link
-              href="#"
-              className="font-medium text-primary hover:opacity-80"
-            >
-              Términos de servicio
-            </Link>{" "}
-            y la{" "}
-            <Link
-              href="#"
-              className="font-medium text-primary hover:opacity-80"
-            >
-              Política de privacidad
-            </Link>
-            .
-          </span>
-        </label>
-        {errors.accept && (
-          <p className="text-xs text-destructive">{errors.accept}</p>
-        )}
-      </div>
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-70"
-      >
-        {loading && (
-          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-        )}
-        {loading ? "Creando cuenta…" : "Crear cuenta"}
-      </button>
-
-      <p className="text-center text-sm text-muted-foreground">
-        ¿Ya tienes cuenta?{" "}
+        <Button
+          type="submit"
+          disabled={loading}
+          className="h-12 w-full justify-between px-4"
+        >
+          {loading ? "Creando cuenta…" : "Crear mi cuenta"}
+          {loading ? (
+            <LoaderCircle className="size-4 animate-spin" />
+          ) : (
+            <ArrowRight className="size-4" />
+          )}
+        </Button>
+      </fieldset>
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Empezás con cuentas y categorías listas para tu primer movimiento.{" "}
+        <Link
+          href="/privacidad"
+          className="text-primary underline underline-offset-4"
+        >
+          Cómo se guardan tus datos
+        </Link>
+        .
+      </p>
+      <p className="border-t border-border pt-4 text-sm text-muted-foreground">
+        ¿Ya tenés cuenta?{" "}
         <Link
           href="/login"
-          className="font-semibold text-primary transition-opacity hover:opacity-80"
+          className="inline-flex min-h-11 items-center font-medium text-primary hover:underline"
         >
-          Inicia sesión
+          Iniciá sesión
         </Link>
       </p>
     </form>

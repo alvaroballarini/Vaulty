@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const PUBLIC_ROUTES = [
   "/login",
   "/register",
+  "/privacidad",
 ];
 
 export function proxy(request: NextRequest) {
@@ -22,9 +23,6 @@ export function proxy(request: NextRequest) {
    * Usuario logueado intentando volver
    * al login
    */
-  if (session && isPublic) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
 
   return NextResponse.next();
 }

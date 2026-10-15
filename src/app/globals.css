@@ -69,7 +69,7 @@
   --accent-foreground: #73edbf;
   --destructive: #ff807c;
   --border: #2a3931;
-  --input: #3b5145;
+  --input: #536c5e;
   --ring: #34d399;
   --chart-1: #34d399;
   --chart-2: #94dbc0;
@@ -123,18 +123,20 @@
 @layer components {
   .vaulty-shell {
     min-height: 100dvh;
-    background:
-      radial-gradient(
-        ellipse 65% 38rem at 48% -10%,
-        #15573850,
-        transparent 80%
-      ),
-      var(--background);
+    background: var(--background);
   }
   .vaulty-panel {
-    background: linear-gradient(135deg, #16231bd9, #101713ed);
+    background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 12px;
+  }
+  .vaulty-error {
+    border: 1px solid #ff807c50;
+    border-radius: 8px;
+    background: #ff807c0c;
+    padding: 12px 14px;
+    color: var(--destructive);
+    font-size: 14px;
   }
   .vaulty-input {
     width: 100%;
@@ -145,6 +147,7 @@
     background: #0b120ed9;
     color: var(--foreground);
     padding: 10px 12px;
+    font-size: 16px;
   }
   .vaulty-input:focus {
     border-color: var(--primary);

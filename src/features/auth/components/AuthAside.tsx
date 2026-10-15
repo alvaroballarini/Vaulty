@@ -1,56 +1,42 @@
-import { Wallet, ShieldCheck, TrendingUp, PieChart } from "lucide-react"
-
-const highlights = [
-  { icon: TrendingUp, title: "Seguimiento en tiempo real", desc: "Visualiza la evolución de tu dinero mes a mes." },
-  { icon: PieChart, title: "Gastos por categoría", desc: "Entiende a dónde va cada peso de tu presupuesto." },
-  { icon: ShieldCheck, title: "Datos protegidos", desc: "Cifrado de extremo a extremo en toda tu información." },
-]
+import { VaultyLogo } from "@/components/VaultyLogo";
+import { WalletCards, List, CalendarDays } from "lucide-react";
 
 export function AuthAside() {
   return (
-    <aside className="relative hidden overflow-hidden bg-primary p-10 text-primary-foreground lg:flex lg:flex-col lg:justify-between">
-      {/* decorative dotted grid */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-10 top-0 h-full w-2/3 opacity-25"
-        style={{
-          backgroundImage: "radial-gradient(currentColor 1.5px, transparent 1.5px)",
-          backgroundSize: "18px 18px",
-          maskImage: "linear-gradient(to left, black, transparent)",
-        }}
-      />
-
-      <div className="relative flex items-center gap-2.5">
-        <div className="flex size-9 items-center justify-center rounded-xl bg-primary-foreground/15">
-          <Wallet className="size-5" aria-hidden="true" />
-        </div>
-        <span className="text-lg font-semibold tracking-tight">Vaulty</span>
-      </div>
-
-      <div className="relative max-w-md">
-        <h2 className="text-balance text-3xl font-semibold leading-tight tracking-tight">
-          Toma el control total de tus finanzas.
+    <aside className="hidden min-h-svh flex-col justify-between border-r border-border bg-[#0d1813] p-10 lg:flex xl:p-16">
+      <VaultyLogo />
+      <div className="max-w-lg py-16">
+        <h2 className="text-4xl font-medium leading-[1.15] tracking-tight xl:text-5xl">
+          Más claridad.
+          <br />
+          <span className="text-primary">Cada día.</span>
         </h2>
-        <p className="mt-3 text-pretty leading-relaxed text-primary-foreground/80">
-          Miles de personas ya organizan su dinero con Vaulty. Únete y empieza a construir un futuro financiero más sólido.
+        <p className="mt-6 max-w-sm text-base leading-relaxed text-muted-foreground">
+          Un lugar para registrar lo que entra, entender lo que gastás y
+          anticipar tus próximos pagos.
         </p>
-
-        <ul className="mt-8 flex flex-col gap-5">
-          {highlights.map((item) => (
-            <li key={item.title} className="flex items-start gap-3.5">
-              <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/15">
-                <item.icon className="size-[18px]" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold">{item.title}</p>
-                <p className="text-sm leading-relaxed text-primary-foreground/70">{item.desc}</p>
-              </div>
-            </li>
+        <div className="mt-12 space-y-5">
+          {[
+            { text: "Tus cuentas, en un mismo lugar", Icon: WalletCards },
+            { text: "Movimientos simples de registrar", Icon: List },
+            { text: "Presupuestos y pagos a la vista", Icon: CalendarDays },
+          ].map(({ text, Icon }) => (
+            <div
+              key={text}
+              className="flex items-center justify-between border-b border-border pb-5 text-sm"
+            >
+              <span>{text}</span>
+              <Icon
+                aria-hidden="true"
+                className="size-4 text-muted-foreground"
+              />
+            </div>
           ))}
-        </ul>
+        </div>
       </div>
-
-      <p className="relative text-sm text-primary-foreground/60">© {new Date().getFullYear()} Vaulty. Todos los derechos reservados.</p>
+      <p className="text-xs text-muted-foreground">
+        Vaulty · Finanzas personales en pesos argentinos
+      </p>
     </aside>
-  )
+  );
 }

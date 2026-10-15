@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 export const createUserSchema = z.object({
-  email: z.email(),
-  passwordHash: z.string(),
+  email: z.string().trim().toLowerCase().pipe(z.email("Ingresá un correo válido.")),
+  passwordHash: z.string().min(8, "Usá al menos 8 caracteres.").max(128, "Usá hasta 128 caracteres."),
 
-  name: z.string().trim().min(2).max(100).optional(),
+  name: z.string().trim().min(2, "Ingresá al menos 2 caracteres.").max(100),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
