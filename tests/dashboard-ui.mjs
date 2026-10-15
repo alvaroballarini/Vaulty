@@ -153,7 +153,7 @@ await context.addCookies([
 ]);
 const page = await context.newPage();
 const errors = [];
-page.on("pageerror", (error) => errors.push(error.message));
+page.on("pageerror", (error) => errors.push(error.stack || error.message));
 let mode = "normal";
 let posts = 0;
 let actionMode = "failure";
@@ -207,6 +207,26 @@ await page.route("**/*", async (route) => {
     data = mode === "empty" ? [] : accounts;
   else if (pathname === "/api/notification")
     data = { items: [], unreadCount: 0 };
+  else if (pathname === "/api/transactions")
+    data = { items: transactions, total: 23, pageSize: 20 };
+  else if (pathname === "/api/schedules")
+    data = [
+      {
+        id: "cm000000000000000000000031",
+        description: "Internet",
+        expectedAmount: 35000,
+        type: "EXPENSE",
+        frequency: "MONTHLY",
+        dayOfMonth: 8,
+        dayOfWeek: null,
+        nextRunAt: "2026-10-08T15:00:00Z",
+        isActive: true,
+        accountId: accounts[0].id,
+        categoryId: categories[0].id,
+        account: accounts[0],
+        category: categories[0],
+      },
+    ];
   else throw new Error("Unmocked API: " + pathname);
   return route.fulfill({ json: data });
 });
@@ -232,7 +252,7 @@ try {
     .getByRole("button", { name: "Mostrar importes", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Cuentas", exact: true })
+    .getByRole("link", { name: "Cuentas", exact: true })
     .first()
     .click();
   await page
@@ -241,10 +261,19 @@ try {
   await page
     .getByRole("button", { name: "Agregar cuenta", exact: true })
     .click();
+  await page.getByLabel("Nombre de la cuenta", { exact: true }).fill("   ");
+  await page
+    .getByRole("button", { name: "Guardar cuenta", exact: true })
+    .click();
+  await page
+    .getByRole("alert")
+    .filter({ hasText: "Ingresá un nombre para la cuenta." })
+    .waitFor();
   await page
     .getByLabel("Nombre de la cuenta", { exact: true })
     .fill("Cuenta de prueba");
-  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await page.getByRole("link", { name: "Inicio", exact: true }).first().click();
   await page.getByRole("button", { name: "Opciones de Supermercado" }).click();
   await page.getByRole("menuitem", { name: "Editar", exact: true }).click();
   const dialog = page.getByRole("dialog");
@@ -323,17 +352,28 @@ try {
   await page.getByRole("button", { name: "Más", exact: true }).click();
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Presupuestos", exact: true })
+    .getByRole("link", { name: "Presupuestos", exact: true })
     .click();
   await page
-    .getByRole("heading", { name: "Presupuestos de este mes" })
+    .getByRole("heading", { name: "Presupuestos", exact: true })
     .waitFor();
   await page.getByRole("button", { name: "Definir presupuesto" }).click();
   await page.getByLabel("Límite mensual · ARS").fill("150.000");
   await page.screenshot({ path: output + "/budget-mobile.png" });
   await page.keyboard.press("Escape");
+  await page
+    .getByRole("button", { name: "Seguir editando", exact: true })
+    .click();
+  assert.equal(
+    await page.getByLabel("Límite mensual · ARS").inputValue(),
+    "150.000",
+  );
+  await page.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Descartar cambios", exact: true })
+    .click();
   mode = "empty";
-  await page.reload({ waitUntil: "networkidle" });
+  await page.goto("http://127.0.0.1:3000", { waitUntil: "networkidle" });
   await page
     .getByText("Todavía no hay movimientos.", { exact: false })
     .waitFor();
@@ -347,7 +387,7 @@ try {
   mode = "error";
   await page.reload({ waitUntil: "networkidle" });
   await page
-    .getByRole("heading", { name: "No pudimos cargar tu resumen" })
+    .getByRole("heading", { name: "No pudimos cargar tu espacio" })
     .waitFor();
   await page.screenshot({ path: output + "/error-mobile.png" });
   mode = "normal";
@@ -355,10 +395,109 @@ try {
   await page
     .getByRole("heading", { name: "Registro rápido", exact: true })
     .waitFor();
+  await page.getByRole("link", { name: "Registrar", exact: true }).click();
+  await page
+    .getByRole("heading", { name: "Registrar movimiento", exact: true })
+    .waitFor();
+  await page.screenshot({
+    path: output + "/register-movement-mobile.png",
+    fullPage: true,
+  });
+  await page.goto("http://127.0.0.1:3000/movimientos", {
+    waitUntil: "networkidle",
+  });
+  await page.getByLabel("Buscar movimientos").fill("supermercado");
+  await page
+    .getByRole("button", { name: "Aplicar filtros", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Siguiente", exact: true }).click();
+  await page.getByText("23 movimientos · Página 2 de 2").waitFor();
+  await page.screenshot({
+    path: output + "/history-mobile.png",
+    fullPage: true,
+  });
+  await page.goto("http://127.0.0.1:3000/presupuestos", {
+    waitUntil: "networkidle",
+  });
+  await page
+    .getByRole("button", { name: "Editar presupuesto de Alimentación" })
+    .click();
+  assert.equal(
+    await page.getByLabel("Límite mensual · ARS").inputValue(),
+    "150.000",
+  );
+  await page.keyboard.press("Escape");
+  await page.goto("http://127.0.0.1:3000/planificacion", {
+    waitUntil: "networkidle",
+  });
+  await page
+    .getByRole("button", { name: "Editar Internet", exact: true })
+    .click();
+  assert.equal(
+    await page.getByLabel("Concepto", { exact: true }).inputValue(),
+    "Internet",
+  );
+  await page.getByLabel("Próxima fecha", { exact: true }).fill("2099-01-08");
+  await page.screenshot({
+    path: output + "/schedule-mobile.png",
+    fullPage: true,
+  });
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("button", { name: "Descartar cambios", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Ocultar importes", exact: true })
+    .click();
+  await page.reload({ waitUntil: "networkidle" });
+  await page
+    .getByRole("button", { name: "Mostrar importes", exact: true })
+    .waitFor();
+  await page
+    .getByRole("button", { name: "Mostrar importes", exact: true })
+    .click();
+  await context.clearCookies();
+  await page.goto("http://127.0.0.1:3000/login", { waitUntil: "networkidle" });
+  assert.equal(
+    await page
+      .getByRole("button", { name: /Recuperar contraseña/ })
+      .isDisabled(),
+    true,
+  );
+  await page
+    .getByRole("button", { name: "Iniciar sesión", exact: true })
+    .click();
+  await page.locator('input[aria-invalid="true"]').first().waitFor();
+  await page.screenshot({ path: output + "/login-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({
+    path: output + "/login-desktop.png",
+    fullPage: true,
+  });
+  await page.getByRole("link", { name: "Creá tu cuenta", exact: true }).click();
+  await page
+    .getByRole("heading", { name: "Empezá a ordenar tu dinero.", exact: true })
+    .waitFor();
+  await page.screenshot({
+    path: output + "/register-desktop.png",
+    fullPage: true,
+  });
   assert.deepEqual(errors, []);
   console.log(
     "PASS: successful save resets draft and refreshes data, responsive layouts, privacy, navigation, edit prefill, validation, failure draft preservation, type categories, empty/error/retry. No database writes.",
   );
+} catch (error) {
+  console.error(
+    "UI state:",
+    page.url(),
+    await page.locator("body").innerText(),
+    errors,
+  );
+  await page.screenshot({
+    path: output + "/failure-current.png",
+    fullPage: true,
+  });
+  throw error;
 } finally {
   await browser.close();
 }

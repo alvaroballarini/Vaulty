@@ -12,7 +12,8 @@ Vaulty nació como una herramienta de uso personal y real. El proyecto busca con
 
 - Registro e inicio de sesión con correo y contraseña.
 - Contraseñas protegidas con Argon2.
-- Sesiones persistentes almacenadas en PostgreSQL.
+- Sesiones en PostgreSQL: opción de recordar el acceso por 30 días o usar una cookie de sesión con vencimiento máximo de 12 horas.
+- Recuperación de contraseña deshabilitada y señalada como Próximamente.
 - Cierre de sesión e invalidación de la sesión activa.
 - Creación automática de cuentas y categorías iniciales para cada usuario.
 
@@ -24,7 +25,7 @@ Vaulty nació como una herramienta de uso personal y real. El proyecto busca con
 - Edición con datos precargados, validación en servidor y confirmación antes de eliminar.
 - Conservación del borrador cuando falla el guardado.
 - Asociación de cada movimiento con una cuenta y una categoría.
-- Listado y búsqueda entre los últimos 10 movimientos (no busca en todo el historial).
+- Vista de los últimos movimientos en Inicio e historial completo con búsqueda, filtros por cuenta, categoría, tipo y fechas, y páginas de 20 resultados.
 - Eliminación de movimientos.
 - Actualización automática de los indicadores del panel después de cada cambio.
 
@@ -37,7 +38,7 @@ Vaulty nació como una herramienta de uso personal y real. El proyecto busca con
 - Gráfico de evolución con vistas de 6 meses y 1 año, más una alternativa textual accesible.
 - Estimación del saldo tras gastos programados de los próximos 14 días; no suma ingresos futuros.
 - La estimación se omite si hay fechas programadas vencidas o sin definir.
-- Opción de ocultar importes, incluidos gráfico y notificaciones.
+- Opción de ocultar importes, incluidos gráfico y notificaciones, recordada por usuario en el navegador.
 - Tema oscuro esmeralda, alertas ámbar y navegación adaptada a móvil.
 - Estados de carga, vacío, error y reintento con datos reales.
 
@@ -51,9 +52,10 @@ Vaulty nació como una herramienta de uso personal y real. El proyecto busca con
 ### Movimientos recurrentes
 
 - Creación de ingresos y gastos diarios, semanales o mensuales.
-- Selección del día de la semana o del mes según la frecuencia.
-- Cálculo de la próxima ejecución.
-- Generación automática de movimientos mediante una tarea programada.
+- Próxima fecha explícita, que define el día semanal o mensual.
+- Edición, pausa y reanudación desde Planificación. Al reanudar una programación vencida se salta al próximo período futuro.
+- Cálculo en zona horaria argentina; el día 31 se ajusta en meses cortos y se recupera en el siguiente.
+- Generación automática mediante una tarea autenticada, con reclamación transaccional de cada ocurrencia para evitar duplicados concurrentes.
 - Próximos pagos e ingresos a partir de las fechas programadas almacenadas.
 
 ### Categorías y notificaciones
@@ -66,20 +68,20 @@ Vaulty nació como una herramienta de uso personal y real. El proyecto busca con
 
 ## Estado de las secciones
 
-| Área                                                      | Estado                                                       |
-| --------------------------------------------------------- | ------------------------------------------------------------ |
-| Registro, inicio y cierre de sesión                       | Funcional                                                    |
-| Registro, edición y eliminación de movimientos            | Funcional                                                    |
-| Cuentas y categorías iniciales                            | Funcional                                                    |
-| Creación de cuentas y consulta de saldos                  | Funcional                                                    |
-| Categorías personalizadas                                 | Funcional                                                    |
-| Presupuestos mensuales                                    | Funcional, con gestión avanzada pendiente                    |
-| Movimientos recurrentes                                   | Funcional, en proceso de refuerzo para producción            |
-| Historial y evolución del saldo                           | Funcional                                                    |
-| Gráfico de gastos por categoría                           | Componente previo pendiente de integración; fuera del inicio |
-| Objetivos de ahorro                                       | Prototipo sin persistencia; fuera del inicio                 |
-| Búsqueda en movimientos recientes y navegación del panel  | Funcional                                                    |
-| Búsqueda global, transferencias y edición de recurrencias | Pendiente                                                    |
+| Área                                              | Estado                                                       |
+| ------------------------------------------------- | ------------------------------------------------------------ |
+| Registro, inicio y cierre de sesión               | Funcional                                                    |
+| Registro, edición y eliminación de movimientos    | Funcional                                                    |
+| Cuentas y categorías iniciales                    | Funcional                                                    |
+| Creación, edición de cuentas y consulta de saldos | Funcional                                                    |
+| Categorías personalizadas                         | Funcional                                                    |
+| Presupuestos mensuales                            | Funcional, con gestión avanzada pendiente                    |
+| Movimientos recurrentes                           | Funcional, en proceso de refuerzo para producción            |
+| Historial y evolución del saldo                   | Funcional                                                    |
+| Gráfico de gastos por categoría                   | Componente previo pendiente de integración; fuera del inicio |
+| Objetivos de ahorro                               | Prototipo sin persistencia; fuera del inicio                 |
+| Búsqueda en historial y navegación por pantallas  | Funcional                                                    |
+| Transferencias entre cuentas                      | Pendiente                                                    |
 
 ## Tecnologías utilizadas
 
@@ -224,3 +226,5 @@ El saldo representa ingresos menos gastos registrados, no una conexión con el b
 ## Contexto
 
 Vaulty es un proyecto personal creado para resolver una necesidad concreta: comprender mejor los hábitos financieros a partir de datos propios. También forma parte de un portfolio y muestra el desarrollo de un producto completo, desde el diseño de la interfaz y el modelado de datos hasta autenticación, consultas agregadas y automatización de operaciones periódicas.
+
+Los recorridos reorganizados, la configuración de la automatización y el resultado de sus comprobaciones se describen en [Acceso y gestión](docs/acceso-y-gestion.md).
