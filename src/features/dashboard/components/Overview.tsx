@@ -56,6 +56,7 @@ export function Overview({
   ];
   return (
     <section
+      data-tour="overview"
       className="vaulty-panel h-full min-w-0 p-4 sm:p-6"
       aria-labelledby="balance-title"
     >
@@ -71,6 +72,7 @@ export function Overview({
         {money(data.totalBalance, hidden)}
       </p>
       <button
+        data-tour="accounts"
         onClick={onAccounts}
         className="mt-5 grid w-full grid-cols-3 gap-2 text-left"
         aria-label="Ver todas mis cuentas"

@@ -72,7 +72,12 @@ const transactions = ["Supermercado", "SUBE", "Sueldo"].map(
   }),
 );
 const dashboard = {
-  user: { id: "demo", name: "Persona de prueba", email: "demo@example.test" },
+  user: {
+    id: "demo",
+    name: "Persona de prueba",
+    email: "demo@example.test",
+    productTourSeenAt: null,
+  },
   asOf: "2026-10-06T15:00:00Z",
   totalBalance: 1245800,
   totalPrevBalance: 920000,
@@ -158,10 +163,24 @@ let mode = "normal";
 let posts = 0;
 let actionMode = "failure";
 let dashboardReads = 0;
+let onboardingPhase = true;
+let tourSaveFails = false;
+let tourWrites = 0;
 await page.route("**/*", async (route) => {
   const request = route.request();
   const pathname = new URL(request.url()).pathname;
   if (request.method() === "POST") {
+    if (onboardingPhase) {
+      tourWrites++;
+      if (tourSaveFails)
+        return route.fulfill({ status: 503, body: "Test: offline" });
+      dashboard.user.productTourSeenAt = "2026-10-16T12:00:00.000Z";
+      return route.fulfill({
+        status: 200,
+        contentType: "text/x-component",
+        body: '0:{"a":"$@1","f":null,"b":"test"}\n1:{"ok":true,"seenAt":"2026-10-16T12:00:00.000Z"}\n',
+      });
+    }
     posts++;
     if (actionMode === "success")
       return route.fulfill({
@@ -232,6 +251,183 @@ await page.route("**/*", async (route) => {
 });
 try {
   await page.goto("http://127.0.0.1:3000", { waitUntil: "networkidle" });
+  const tour = page.locator("[data-product-tour]");
+  const nextStep = () =>
+    tour.getByRole("button", { name: "Siguiente", exact: true }).click();
+  async function checkTourLayout() {
+    await page.waitForFunction(() => {
+      const card = document
+        .querySelector("[data-product-tour]")
+        ?.getBoundingClientRect();
+      const spot = document
+        .querySelector("[data-tour-spotlight]")
+        ?.getBoundingClientRect();
+      return (
+        card &&
+        spot &&
+        spot.height > 0 &&
+        card.top >= 0 &&
+        card.left >= 0 &&
+        card.right <= innerWidth &&
+        card.bottom <= innerHeight &&
+        (card.right <= spot.left ||
+          card.left >= spot.right ||
+          card.top >= spot.bottom ||
+          card.bottom <= spot.top)
+      );
+    });
+    // Let scrolling, measurement and the browser paint settle before captures.
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => requestAnimationFrame(resolve)),
+          ),
+        ),
+    );
+    assert.equal(
+      await tour.evaluate((el) => {
+        const card = el.getBoundingClientRect();
+        const title = el.querySelector("h2")?.getBoundingClientRect();
+        const target = document
+          .querySelector(`[data-tour="${el.dataset.tourTarget}"]`)
+          ?.getBoundingClientRect();
+        const spot = document
+          .querySelector("[data-tour-spotlight]")
+          ?.getBoundingClientRect();
+        return (
+          title &&
+          title.top >= card.top &&
+          title.bottom <= card.bottom &&
+          target &&
+          spot &&
+          Math.abs(spot.top - Math.max(8, target.top - 6)) < 2 &&
+          [...el.querySelectorAll("button")].every((button) => {
+            const rect = button.getBoundingClientRect();
+            return (
+              rect.top >= card.top &&
+              rect.bottom <= card.bottom &&
+              rect.left >= card.left &&
+              rect.right <= card.right
+            );
+          })
+        );
+      }),
+      true,
+      "title and every tour control remain visible; spotlight follows the current target",
+    );
+  }
+  await tour
+    .getByRole("heading", { name: "Tu dinero, de un vistazo" })
+    .waitFor();
+  await checkTourLayout();
+  await page.screenshot({ path: output + "/tour-desktop.png" });
+  await nextStep();
+  await tour.getByRole("heading", { name: "Organizá tus cuentas" }).waitFor();
+  await tour.getByRole("button", { name: "Atrás", exact: true }).click();
+  await tour
+    .getByRole("heading", { name: "Tu dinero, de un vistazo" })
+    .waitFor();
+  for (let i = 0; i < 6; i++) {
+    await nextStep();
+    await checkTourLayout();
+  }
+  await tour.getByRole("button", { name: "Empezar", exact: true }).click();
+  await tour.waitFor({ state: "hidden" });
+  assert.equal(tourWrites, 1);
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(await tour.count(), 0, "a completed tour must not reappear");
+  // Server state survives clearing browser storage (equivalent to a new device).
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(
+    await tour.count(),
+    0,
+    "server receipt prevents a second automatic tour",
+  );
+  await page.goto("http://127.0.0.1:3000/cuentas", {
+    waitUntil: "networkidle",
+  });
+  await page.getByRole("button", { name: "Mi perfil", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Ver recorrido guiado" }).click();
+  await tour
+    .getByRole("heading", { name: "Tu dinero, de un vistazo" })
+    .waitFor();
+  await page.keyboard.press("Escape");
+  await tour.waitFor({ state: "hidden" });
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Mi perfil", exact: true })
+      .evaluate((el) => el === document.activeElement),
+    true,
+  );
+  assert.equal(tourWrites, 1, "replaying does not rewrite the receipt");
+  // A second user in the same browser gets their own tour. A failed acknowledgement
+  // is kept locally, and then retried without displaying the tour again.
+  dashboard.user = {
+    ...dashboard.user,
+    id: "tour-mobile",
+    productTourSeenAt: null,
+  };
+  tourSaveFails = true;
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload({ waitUntil: "networkidle" });
+  await tour
+    .getByRole("heading", { name: "Tu dinero, de un vistazo" })
+    .waitFor();
+  for (let i = 0; i < 7; i++) {
+    await checkTourLayout();
+    if (i === 0 || i === 2)
+      await page.screenshot({ path: output + `/tour-mobile-${i + 1}.png` });
+    if (i < 6) await nextStep();
+  }
+  await page.setViewportSize({ width: 320, height: 640 });
+  await checkTourLayout();
+  await page.screenshot({ path: output + "/tour-narrow.png" });
+  await tour.getByRole("button", { name: "Omitir recorrido" }).click();
+  tourSaveFails = false;
+  const writesBeforeRetry = tourWrites;
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(
+    await tour.count(),
+    0,
+    "skipped tour must not reappear after a failed save",
+  );
+  assert.equal(
+    tourWrites,
+    writesBeforeRetry + 1,
+    "pending acknowledgement is retried",
+  );
+  for (const viewport of [
+    { width: 320, height: 640 },
+    { width: 768, height: 1024 },
+    { width: 844, height: 390 },
+    { width: 1024, height: 768 },
+    { width: 1100, height: 600 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.getByRole("button", { name: "Mi perfil", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Ver recorrido guiado" }).click();
+    await tour
+      .getByRole("heading", { name: "Tu dinero, de un vistazo" })
+      .waitFor();
+    for (let i = 0; i < 7; i++) {
+      await checkTourLayout();
+      if (i === 2) {
+        await page.screenshot({ path: output + `/tour-${viewport.width}.png` });
+      }
+      if (i < 6) await nextStep();
+    }
+    await tour.getByRole("button", { name: "Empezar", exact: true }).click();
+    await tour.waitFor({ state: "hidden" });
+  }
+  dashboard.user.id = "demo";
+  onboardingPhase = false;
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await page.reload({ waitUntil: "networkidle" });
+  console.log(
+    "PASS: first entry, seven anchored steps, back/finish/skip/Escape, profile replay, per-user persistence, server receipt, offline retry and mobile tour. All writes mocked.",
+  );
   await page
     .getByRole("heading", { name: "Registro rápido", exact: true })
     .waitFor();

@@ -3,6 +3,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useState,
   useSyncExternalStore,
 } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -13,6 +14,7 @@ import { Button } from "./ui/button";
 import getDashboard from "@/hooks/getDashboard";
 import { DashboardType } from "@/features/dashboard/type";
 import { UnauthorizedError } from "@/features/auth/types/authType";
+import { ProductTour } from "@/features/onboarding/components/ProductTour";
 
 const Workspace = createContext<{
   data: DashboardType;
@@ -57,6 +59,7 @@ function subscribe(callback: () => void) {
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [replayRequest, setReplayRequest] = useState(0);
   const dashboard = useQuery({
     queryKey: ["dashboard"],
     queryFn: getDashboard,
@@ -110,6 +113,14 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
             onToggle={toggle}
             title={title}
             description={description}
+            onStartTour={
+              dashboard.data && !dashboard.isError
+                ? () => {
+                    setReplayRequest((request) => request + 1);
+                    if (pathname !== "/") router.push("/");
+                  }
+                : undefined
+            }
           />
           {dashboard.isLoading ? (
             <div role="status" className="grid gap-5 md:grid-cols-2">
@@ -132,6 +143,11 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
           ) : (
             <Workspace.Provider value={{ data: dashboard.data, hidden }}>
               {children}
+              <ProductTour
+                key={dashboard.data.user.id}
+                user={dashboard.data.user}
+                replayRequest={replayRequest}
+              />
             </Workspace.Provider>
           )}
         </div>

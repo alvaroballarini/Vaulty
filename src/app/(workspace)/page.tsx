@@ -42,6 +42,7 @@ export default function Page() {
           <PaymentEstimate outlook={data.paymentOutlook} hidden={hidden} />
         </div>
         <section
+          data-tour="register"
           className="vaulty-panel min-w-0 border-primary/25 p-4 [grid-area:entry] sm:p-6"
           aria-labelledby="quick-title"
         >
@@ -94,6 +95,7 @@ export default function Page() {
           />
           <Link
             href="/movimientos"
+            data-tour="history"
             className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm text-primary"
           >
             Ver todos los movimientos

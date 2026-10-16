@@ -228,3 +228,5 @@ El saldo representa ingresos menos gastos registrados, no una conexión con el b
 Vaulty es un proyecto personal creado para resolver una necesidad concreta: comprender mejor los hábitos financieros a partir de datos propios. También forma parte de un portfolio y muestra el desarrollo de un producto completo, desde el diseño de la interfaz y el modelado de datos hasta autenticación, consultas agregadas y automatización de operaciones periódicas.
 
 Los recorridos reorganizados, la configuración de la automatización y el resultado de sus comprobaciones se describen en [Acceso y gestión](docs/acceso-y-gestion.md).
+
+El primer acceso incluye un [recorrido guiado](docs/recorrido-guiado.md) de las funciones principales, que se puede repetir desde Mi perfil.

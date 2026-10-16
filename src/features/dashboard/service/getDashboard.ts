@@ -104,7 +104,7 @@ export async function getDashboardMetrics(date: Date = new Date()) {
     }),
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, productTourSeenAt: true },
     }),
     prisma.transaction.groupBy({
       by: ["accountId", "type"],

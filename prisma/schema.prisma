@@ -19,6 +19,7 @@ model User {
   notifications Notification[]
   budgets       Budget[]
   createdAt     DateTime       @default(now())
+  productTourSeenAt DateTime?
 
   recurringTransactions RecurringTransaction[]
   sessions              Session[]

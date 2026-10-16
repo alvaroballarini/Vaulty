@@ -12,6 +12,7 @@ export function Topbar({
   asOf,
   title = "Tu dinero, en perspectiva.",
   description,
+  onStartTour,
 }: {
   user?: { name: string | null; email: string };
   hidden: boolean;
@@ -19,6 +20,7 @@ export function Topbar({
   asOf?: string;
   title?: string;
   description?: string;
+  onStartTour?: () => void;
 }) {
   const date = asOf
     ? new Intl.DateTimeFormat("es-AR", {
@@ -35,7 +37,10 @@ export function Topbar({
           <VaultyLogo />
         </Link>
         <p className="hidden text-xs text-muted-foreground lg:block">{date}</p>
-        <div className="ml-auto flex items-center gap-1 sm:gap-2">
+        <div
+          data-tour="privacy"
+          className="ml-auto flex items-center gap-1 sm:gap-2"
+        >
           <button
             onClick={onToggle}
             aria-label={hidden ? "Mostrar importes" : "Ocultar importes"}
@@ -49,7 +54,7 @@ export function Topbar({
             )}
           </button>
           <NotificationCenter hiddenAmounts={hidden} />
-          <UserDropdown user={user} />
+          <UserDropdown user={user} onStartTour={onStartTour} />
         </div>
       </div>
       <h1 className="text-[clamp(1.5rem,2.5vw,2.25rem)] font-semibold tracking-tight">

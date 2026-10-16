@@ -2,6 +2,29 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+.vaulty-tour-card {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  z-index: 61;
+  width: min(400px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 0.4);
+  outline: none;
+}
+
+@media (max-width: 1099px) {
+  .vaulty-tour-card {
+    padding: 20px;
+    max-height: 60dvh;
+  }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

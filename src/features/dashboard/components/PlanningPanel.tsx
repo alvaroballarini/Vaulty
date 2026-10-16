@@ -22,6 +22,7 @@ export function PlanningPanel({
   return (
     <div className="flex h-full flex-col gap-3">
       <section
+        data-tour="planning"
         className="vaulty-panel flex-1 p-4 sm:p-5"
         aria-labelledby="planning-title"
       >
@@ -139,6 +140,7 @@ export function PlanningPanel({
         </Link>
       </section>
       <button
+        data-tour="budgets"
         onClick={onBudgets}
         className={cn(
           "flex min-h-20 items-center gap-3 rounded-xl border p-4 text-left",
